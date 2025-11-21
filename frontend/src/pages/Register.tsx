@@ -32,26 +32,31 @@ const Register = () => {
       return;
     }
 
+    if (!userType) {
+      toast.error('Selecione o tipo de usuário');
+      return;
+    }
+
     if (userType === 'veterinarian' && !formData.crmv) {
       toast.error('Informe o CRMV');
       return;
     }
 
     setLoading(true);
-    const success = await register(
+    const result = await register(
       formData.name,
       formData.email,
       formData.password,
-      userType!,
+      userType,
       formData.crmv
     );
     setLoading(false);
 
-    if (success) {
-      toast.success('Cadastro realizado com sucesso!');
+    if (result.ok) {
+      toast.success(result.message || 'Cadastro realizado com sucesso!');
       navigate(userType === 'tutor' ? '/tutor/dashboard' : '/vet/dashboard');
     } else {
-      toast.error('E-mail já cadastrado');
+      toast.error(result.message || 'Erro ao cadastrar');
     }
   };
 
@@ -205,7 +210,9 @@ const Register = () => {
                   type="password"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
                   className="pl-10 h-12"
                 />
               </div>

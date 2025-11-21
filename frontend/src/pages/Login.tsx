@@ -14,28 +14,34 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (type: 'tutor' | 'veterinarian') => {
+  const handleLogin = async () => {
     if (!email || !password) {
       toast.error('Preencha todos os campos');
       return;
     }
 
     setLoading(true);
-    const success = await login(email, password, type);
+    const loggedUser = await login(email, password, 'tutor'); 
+    // OBS: esse "tutor" não importa mais; a role real vem do backend.
     setLoading(false);
 
-    if (success) {
+    if (loggedUser) {
       toast.success('Login realizado com sucesso!');
-      navigate(type === 'tutor' ? '/tutor/dashboard' : '/vet/dashboard');
+
+      if (loggedUser.type === 'veterinarian') {
+        navigate('/vet/dashboard');
+      } else {
+        navigate('/tutor/dashboard');
+      }
     } else {
-      toast.error('Erro ao fazer login');
+      toast.error('Credenciais inválidas');
     }
   };
 
   return (
     <div className="mobile-container gradient-hero min-h-screen">
       <div className="flex flex-col items-center justify-center min-h-screen px-6">
-        {/* Logo/Brand */}
+        {/* Logo */}
         <div className="mb-8 text-center">
           <div className="w-20 h-20 mx-auto mb-4 bg-primary rounded-3xl flex items-center justify-center shadow-lg">
             <Heart className="w-10 h-10 text-primary-foreground" fill="currentColor" />
@@ -49,9 +55,7 @@ const Login = () => {
         {/* Login Form */}
         <div className="w-full max-w-sm mobile-card space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
-              E-mail
-            </Label>
+            <Label htmlFor="email">E-mail</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
               <Input
@@ -66,9 +70,7 @@ const Login = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium">
-              Senha
-            </Label>
+            <Label htmlFor="password">Senha</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
               <Input
@@ -82,22 +84,13 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="space-y-3 pt-2">
+          <div className="pt-2">
             <Button
-              onClick={() => handleLogin('tutor')}
+              onClick={handleLogin}
               disabled={loading}
               className="w-full h-12 text-base font-semibold gradient-primary"
             >
-              Entrar como Tutor
-            </Button>
-            
-            <Button
-              onClick={() => handleLogin('veterinarian')}
-              disabled={loading}
-              variant="outline"
-              className="w-full h-12 text-base font-semibold"
-            >
-              Entrar como Veterinário
+              Realizar login
             </Button>
           </div>
 
@@ -111,10 +104,6 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Demo info */}
-        <div className="mt-6 text-center text-xs text-muted-foreground max-w-sm">
-          <p>Use qualquer e-mail e senha para criar uma conta demo</p>
-        </div>
       </div>
     </div>
   );

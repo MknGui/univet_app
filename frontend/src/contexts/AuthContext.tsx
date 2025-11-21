@@ -12,8 +12,14 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, type: UserType) => Promise<boolean>;
-  register: (name: string, email: string, password: string, type: UserType, crmv?: string) => Promise<boolean>;
+  login: (email: string, password: string, type: UserType) => Promise<User | false>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    type: UserType,
+    crmv?: string
+  ) => Promise<{ ok: boolean; message?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -28,76 +34,145 @@ export const useAuth = () => {
   return context;
 };
 
+// Normaliza qualquer coisa que venha do backend para "tutor" | "veterinarian"
+const normalizeToUserType = (value: any): UserType => {
+  if (!value) return 'tutor';
+
+  const str = value.toString().trim().toLowerCase();
+
+  if (
+    str.includes('vet') ||       // vet, veterinarian, veterinario...
+    str.includes('veterin') ||
+    str === 'veterinarian'
+  ) {
+    return 'veterinarian';
+  }
+
+  return 'tutor';
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('univet_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsed = JSON.parse(savedUser);
+        const normalized: User = {
+          id: String(parsed.id),
+          name: parsed.name ?? '',
+          email: parsed.email,
+          type: normalizeToUserType(parsed.type ?? parsed.role),
+          crmv: parsed.crmv,
+        };
+        setUser(normalized);
+      } catch (e) {
+        console.error('Erro ao carregar usuário do localStorage:', e);
+      }
     }
   }, []);
 
-  const login = async (email: string, password: string, type: UserType): Promise<boolean> => {
-    // Mock login - verificar usuários cadastrados
-    const users = JSON.parse(localStorage.getItem('univet_users') || '[]');
-    const foundUser = users.find((u: User) => u.email === email && u.type === type);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('univet_user', JSON.stringify(foundUser));
-      return true;
+  // -----------------------------
+  // LOGIN REAL (Flask)
+  // -----------------------------
+  const login = async (
+    email: string,
+    password: string,
+    type: UserType
+  ): Promise<User | false> => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) return false;
+
+      const data = await response.json();
+
+      const rawRole = data.user?.role;
+      console.log('[Auth] role vinda do backend:', rawRole);
+
+      const backendUser: User = {
+        id: String(data.user.id),
+        name: data.user.name ?? '',
+        email: data.user.email,
+        type: normalizeToUserType(rawRole),
+        crmv: data.user.crmv ?? undefined,
+      };
+
+      localStorage.setItem('univet_token', data.access_token);
+      localStorage.setItem('univet_user', JSON.stringify(backendUser));
+
+      setUser(backendUser);
+
+      return backendUser;
+    } catch (err) {
+      console.error('Erro login:', err);
+      return false;
     }
-    
-    // Criar usuário demo se não existir
-    const demoUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: type === 'tutor' ? 'Tutor Demo' : 'Dr. Veterinário Demo',
-      email,
-      type,
-      ...(type === 'veterinarian' && { crmv: 'CRMV-SP 12345' })
-    };
-    
-    setUser(demoUser);
-    localStorage.setItem('univet_user', JSON.stringify(demoUser));
-    users.push(demoUser);
-    localStorage.setItem('univet_users', JSON.stringify(users));
-    return true;
   };
 
+  // -----------------------------
+  // REGISTER REAL (Flask) + auto login, retornando mensagem
+  // -----------------------------
   const register = async (
     name: string,
     email: string,
     password: string,
     type: UserType,
     crmv?: string
-  ): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('univet_users') || '[]');
-    
-    // Verificar se email já existe
-    if (users.some((u: User) => u.email === email)) {
-      return false;
+  ): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          // backend espera "vet" ou "tutor"
+          role: type === 'veterinarian' ? 'vet' : 'tutor',
+          crmv: type === 'veterinarian' ? crmv : undefined,
+        }),
+      });
+
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          message: data?.message || 'Erro ao cadastrar',
+        };
+      }
+
+      // se cadastrou, já faz login automático
+      const loggedUser = await login(email, password, type);
+      if (!loggedUser) {
+        return {
+          ok: false,
+          message: 'Cadastro realizado, mas houve erro ao fazer login automático.',
+        };
+      }
+
+      return { ok: true, message: data?.message };
+    } catch (err) {
+      console.error('Erro register:', err);
+      return { ok: false, message: 'Erro inesperado ao cadastrar.' };
     }
-
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      type,
-      ...(type === 'veterinarian' && crmv && { crmv })
-    };
-
-    users.push(newUser);
-    localStorage.setItem('univet_users', JSON.stringify(users));
-    
-    setUser(newUser);
-    localStorage.setItem('univet_user', JSON.stringify(newUser));
-    return true;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('univet_user');
+    localStorage.removeItem('univet_token');
   };
 
   return (
@@ -107,7 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
-        isAuthenticated: !!user
+        isAuthenticated: !!user,
       }}
     >
       {children}
