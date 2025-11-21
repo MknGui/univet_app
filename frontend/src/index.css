@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Univet Brand Colors - Professional Veterinary Theme */
+    --background: 0 0% 98%;
+    --foreground: 210 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 20% 15%;
+
+    /* Primary: Professional Blue #1b6ca8 */
+    --primary: 203 72% 38%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 203 72% 90%;
+    --primary-dark: 203 72% 28%;
+
+    /* Secondary: Soft accent */
+    --secondary: 203 20% 96%;
+    --secondary-foreground: 203 72% 38%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 15% 50%;
+
+    --accent: 203 72% 92%;
+    --accent-foreground: 203 72% 38%;
+
+    /* Status colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 203 72% 38%;
+
+    --radius: 1rem;
+    
+    /* Mobile-specific design tokens */
+    --mobile-header: 4.5rem;
+    --mobile-bottom-nav: 4rem;
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 2px 8px rgba(27, 108, 168, 0.08);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(203 72% 38%) 0%, hsl(203 72% 48%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(203 72% 96%) 0%, hsl(0 0% 100%) 100%);
+    
+    /* Animation */
+    --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Light theme only for UNIVET */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  /* Mobile optimizations */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  /* Mobile app utilities */
+  .mobile-container {
+    @apply max-w-md mx-auto h-screen overflow-hidden;
+  }
+  
+  .mobile-content {
+    @apply px-4 pb-20 overflow-y-auto;
+  }
+  
+  .mobile-header {
+    @apply sticky top-0 z-40 bg-background border-b border-border;
+  }
+  
+  .mobile-card {
+    @apply bg-card rounded-2xl p-4 shadow-[var(--shadow-card)];
+  }
+  
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  
+  /* Prose styles for educational content */
+  .prose {
+    @apply text-foreground leading-7;
+  }
+  
+  .prose h2 {
+    @apply text-xl font-bold mb-4 mt-6 text-foreground;
+  }
+  
+  .prose h3 {
+    @apply text-lg font-semibold mb-3 mt-5 text-foreground;
+  }
+  
+  .prose p {
+    @apply mb-4 text-muted-foreground;
+  }
+  
+  .prose ul, .prose ol {
+    @apply mb-4 ml-6 space-y-2;
+  }
+  
+  .prose ul {
+    @apply list-disc;
+  }
+  
+  .prose ol {
+    @apply list-decimal;
+  }
+  
+  .prose li {
+    @apply text-muted-foreground;
+  }
+  
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+  
+}
