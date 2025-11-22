@@ -2,7 +2,8 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
 from extensions import db, migrate, jwt
-from auth_routes import auth_bp
+from routes import register_blueprints
+
 
 def create_app():
     app = Flask(__name__)
@@ -16,7 +17,7 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # Blueprints
-    app.register_blueprint(auth_bp)
+    register_blueprints(app)
 
     @app.route("/api/health", methods=["GET"])
     def health():

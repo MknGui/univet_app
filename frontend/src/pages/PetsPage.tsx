@@ -147,11 +147,12 @@ const PetsPage: React.FC = () => {
                     ({p.species})
                   </span>
                 </span>
-                {p.breed && (
+                {p.breeds && p.breeds.length > 0 && (
                   <span className="text-xs text-slate-500">
-                    Raça: {p.breed}
+                    Raças: {p.breeds.join(", ")}
                   </span>
                 )}
+
                 {p.sex && (
                   <span className="text-xs text-slate-500">
                     Sexo: {p.sex}

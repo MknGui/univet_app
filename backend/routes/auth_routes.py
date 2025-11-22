@@ -10,6 +10,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 CRMV_REGEX = r"^CRMV-[A-Z]{2}\s\d{2,6}$"
 EMAIL_REGEX = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
 
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
     data = request.get_json() or {}
@@ -35,19 +36,19 @@ def register():
     # valida formato de e-mail
     if not re.match(EMAIL_REGEX, email):
         return jsonify({"message": "E-mail inválido"}), 400
-    
+
     # valida CRMV se role for veterinarian
     if role == "veterinarian":
         if not crmv:
             return jsonify({"message": "CRMV é obrigatório para veterinários"}), 400
-        
+
         # normaliza CRMV para uppercase
         crmv = crmv.strip().upper()
 
         if not re.match(CRMV_REGEX, crmv):
-            return jsonify({
-                "message": "CRMV inválido. Use o formato: CRMV-UF 12345"
-            }), 400
+            return jsonify(
+                {"message": "CRMV inválido. Use o formato: CRMV-UF 12345"}
+            ), 400
 
     # email duplicado
     if User.query.filter_by(email=email).first():
@@ -71,7 +72,7 @@ def register():
 def login():
     data = request.get_json() or {}
 
-    email = data.get("email")
+    email = (data.get("email") or "").strip().lower()
     password = data.get("password")
 
     if not email or not password:
@@ -82,8 +83,13 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"message": "Credenciais inválidas"}), 401
 
-    # Aqui entra o JWT_SECRET_KEY que você perguntou no outro chat
-    access_token = create_access_token(identity={"id": user.id, "role": user.role})
+    # identity PRECISA ser string
+    # role vai em claims extras
+    additional_claims = {"role": user.role}
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims=additional_claims,
+    )
 
     return jsonify(
         {
