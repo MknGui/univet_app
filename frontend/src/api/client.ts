@@ -15,6 +15,7 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = API_BASE_URL + path;
+
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(options.headers ?? {}),
@@ -44,7 +45,7 @@ export async function apiRequest<T>(
     );
   }
 
-  // Suporta rotas sem corpo (ex: 204), mas nosso back retorna JSON
+  // Suporta rotas sem corpo, mas nosso back retorna JSON
   try {
     return (await response.json()) as T;
   } catch {

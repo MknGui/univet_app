@@ -1,30 +1,102 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MobileLayout } from '@/components/MobileLayout';
-import { MobileHeader } from '@/components/MobileHeader';
-import { Button } from '@/components/ui/button';
-import { Plus, Calendar } from 'lucide-react';
-import { CardAgendamento } from '@/components/cards/CardAgendamento';
-import { mockAppointments } from '@/data/mockData';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MobileLayout } from "@/components/MobileLayout";
+import { MobileHeader } from "@/components/MobileHeader";
+import { Button } from "@/components/ui/button";
+import { Plus, Calendar } from "lucide-react";
+import { CardAgendamento } from "@/components/cards/CardAgendamento";
+import { toast } from "sonner";
+
+// Tipo que o CardAgendamento espera (vem do mock)
+import type { Appointment as UIAppointment } from "@/data/mockData";
+
+// Tipo da API real + função para buscar no backend
+import {
+  listAppointments,
+  type Appointment as ApiAppointment,
+} from "@/api/appointments";
+
+const mapStatus = (
+  apiStatus: ApiAppointment["status"]
+): UIAppointment["status"] => {
+  switch (apiStatus) {
+    case "PENDING":
+      return "pending";
+    case "CONFIRMED":
+      return "confirmed";
+    case "CANCELLED":
+      return "cancelled";
+    case "COMPLETED":
+      return "completed";
+    default:
+      return "pending";
+  }
+};
+
+const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
+  const dt = new Date(appt.scheduled_at);
+
+  // CardAgendamento faz: new Date(appointment.date)
+  // qualquer string ISO válida funciona
+  const date = dt.toISOString();
+  const time = dt.toTimeString().slice(0, 5); // HH:MM
+
+  return {
+    id: String(appt.id),
+
+    animalId: String(appt.pet_id),
+    animalName: `Pet #${appt.pet_id}`,
+
+    tutorId: String(appt.tutor_id),
+    tutorName: `Tutor #${appt.tutor_id}`,
+
+    vetId: String(appt.vet_id),
+    vetName: `Vet #${appt.vet_id}`,
+
+    date,
+    time,
+    status: mapStatus(appt.status),
+
+    // aqui estava o erro: era appt.notes, mas o backend manda "reason"
+    type: appt.reason || "Consulta",
+  };
+};
 
 const Appointments = () => {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
+  const [filter, setFilter] = useState<"upcoming" | "past">("upcoming");
+  const [appointments, setAppointments] = useState<UIAppointment[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Filter tutor's appointments (assuming tutorId = 'tutor1')
-  const tutorAppointments = mockAppointments.filter(apt => apt.tutorId === 'tutor1');
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const apiAppointments = await listAppointments(); // tutor logado
+        const mapped = apiAppointments.map(mapApiToUi);
+        setAppointments(mapped);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err?.message ?? "Erro ao carregar agendamentos");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, []);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const filteredAppointments = tutorAppointments.filter(apt => {
+  const filteredAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.date);
     aptDate.setHours(0, 0, 0, 0);
-    
-    if (filter === 'upcoming') {
-      return aptDate >= today && apt.status !== 'completed';
+
+    if (filter === "upcoming") {
+      return aptDate >= today && apt.status !== "completed";
     } else {
-      return aptDate < today || apt.status === 'completed';
+      return aptDate < today || apt.status === "completed";
     }
   });
 
@@ -35,7 +107,7 @@ const Appointments = () => {
         action={
           <Button
             size="icon"
-            onClick={() => navigate('/tutor/appointment/new')}
+            onClick={() => navigate("/tutor/appointment/new")}
             className="h-9 w-9 gradient-primary"
           >
             <Plus className="h-5 w-5" />
@@ -44,46 +116,60 @@ const Appointments = () => {
       />
 
       <div className="px-6 py-6 space-y-4">
-        {/* Filter Tabs */}
+        {/* Abas de filtro */}
         <div className="flex gap-2">
           <Button
-            variant={filter === 'upcoming' ? 'default' : 'outline'}
-            onClick={() => setFilter('upcoming')}
+            variant={filter === "upcoming" ? "default" : "outline"}
+            onClick={() => setFilter("upcoming")}
             className="flex-1"
           >
             Próximas
           </Button>
           <Button
-            variant={filter === 'past' ? 'default' : 'outline'}
-            onClick={() => setFilter('past')}
+            variant={filter === "past" ? "default" : "outline"}
+            onClick={() => setFilter("past")}
             className="flex-1"
           >
             Anteriores
           </Button>
         </div>
 
-        {filteredAppointments.length > 0 ? (
+        {loading && appointments.length === 0 && (
+          <div className="mobile-card text-center py-12">
+            <p className="text-sm text-muted-foreground">
+              Carregando agendamentos...
+            </p>
+          </div>
+        )}
+
+        {!loading && filteredAppointments.length > 0 ? (
           <div className="space-y-3">
             {filteredAppointments.map((appointment) => (
               <CardAgendamento
                 key={appointment.id}
                 appointment={appointment}
-                onClick={() => navigate(`/tutor/appointment/${appointment.id}`)}
+                onClick={() =>
+                  navigate(`/tutor/appointment/${appointment.id}`)
+                }
               />
             ))}
           </div>
-        ) : (
+        ) : !loading ? (
           <div className="mobile-card text-center py-12">
             <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="font-semibold text-lg mb-2">
-              {filter === 'upcoming' ? 'Nenhum agendamento futuro' : 'Nenhum agendamento anterior'}
+              {filter === "upcoming"
+                ? "Nenhum agendamento futuro"
+                : "Nenhum agendamento anterior"}
             </h3>
             <p className="text-sm text-muted-foreground mb-6">
-              {filter === 'upcoming' ? 'Agende sua primeira consulta veterinária' : 'Você ainda não possui consultas anteriores'}
+              {filter === "upcoming"
+                ? "Agende sua primeira consulta veterinária"
+                : "Você ainda não possui consultas anteriores"}
             </p>
-            {filter === 'upcoming' && (
+            {filter === "upcoming" && (
               <Button
-                onClick={() => navigate('/tutor/appointment/new')}
+                onClick={() => navigate("/tutor/appointment/new")}
                 className="gradient-primary"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -91,7 +177,7 @@ const Appointments = () => {
               </Button>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </MobileLayout>
   );

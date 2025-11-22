@@ -14,10 +14,18 @@ class User(db.Model):
     # tutor, veterinarian, admin
     role = db.Column(db.String(20), nullable=False, default="tutor")
 
-    # obrigatório só se for veterinarian
+    # apenas para veterinário
     crmv = db.Column(db.String(50), nullable=True)
+    specialty = db.Column(db.String(120), nullable=True)   # Ex: Dermatologia
+    phone = db.Column(db.String(30), nullable=True)        # Celular / WhatsApp
+
+    # clínica principal do vet (pode ser nula para tutor)
+    clinic_id = db.Column(db.Integer, db.ForeignKey("clinics.id"), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # relação para acessar os dados da clínica
+    clinic = db.relationship("Clinic", back_populates="vets")
 
 
 class Pet(db.Model):
@@ -147,3 +155,35 @@ class Appointment(db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
+class Clinic(db.Model):
+    __tablename__ = "clinics"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+
+    # para o filtro que você usa no front: Centro, Zona Sul, etc
+    region = db.Column(db.String(80), nullable=True)
+
+    # endereço básico
+    address = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(80), nullable=True)
+    state = db.Column(db.String(2), nullable=True)
+    zip_code = db.Column(db.String(20), nullable=True)
+
+    phone = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # lista de veterinários dessa clínica
+    vets = db.relationship("User", back_populates="clinic", lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "region": self.region,
+            "address": self.address,
+            "city": self.city,
+            "state": self.state,
+            "zip_code": self.zip_code,
+            "phone": self.phone,
+        }

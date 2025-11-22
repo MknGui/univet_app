@@ -1,6 +1,7 @@
 from .auth_routes import auth_bp
 from .pet_routes import pets_bp
 from .appointment_routes import appointments_bp
+from .vet_routes import vets_bp
 
 
 def register_blueprints(app):
@@ -11,3 +12,5 @@ def register_blueprints(app):
     app.register_blueprint(pets_bp, url_prefix="/api")
 
     app.register_blueprint(appointments_bp, url_prefix="/api")
+
+    app.register_blueprint(vets_bp)

@@ -1,26 +1,54 @@
+// src/api/appointments.ts
 import { apiRequest } from "./client";
 
-export type Appointment = {
+export type AppointmentStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "CANCELLED"
+  | "COMPLETED";
+
+export interface Appointment {
   id: number;
+  pet_id: number;
+  tutor_id: number;
+  vet_id: number;
+  scheduled_at: string; // ISO 8601 vindo do backend
+  reason?: string | null;
+  status: AppointmentStatus;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CreateAppointmentPayload {
   pet_id: number;
   vet_id: number;
   scheduled_at: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE";
-  notes?: string | null;
-};
-
-export async function listAppointments(): Promise<Appointment[]> {
-  return apiRequest<Appointment[]>("/appointments/");
+  reason?: string;
 }
 
-export async function createAppointment(payload: {
-  pet_id: number;
-  vet_id: number;
-  scheduled_at: string; // ISO string
-  notes?: string;
-}): Promise<{ id: number; message: string }> {
-  return apiRequest<{ id: number; message: string }>("/appointments/", {
+// lista para o usuário logado (tutor por padrão)
+export async function listAppointments(
+  role: "tutor" | "vet" = "tutor"
+): Promise<Appointment[]> {
+  const query = role ? `?role=${role}` : "";
+  return apiRequest<Appointment[]>(`/appointments${query}`);
+}
+
+export async function getAppointment(id: number): Promise<Appointment> {
+  return apiRequest<Appointment>(`/appointments/${id}`);
+}
+
+export async function createAppointment(
+  payload: CreateAppointmentPayload
+): Promise<Appointment> {
+  return apiRequest<Appointment>("/appointments", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function cancelAppointment(id: number): Promise<Appointment> {
+  return apiRequest<Appointment>(`/appointments/${id}/cancel`, {
+    method: "PATCH",
   });
 }

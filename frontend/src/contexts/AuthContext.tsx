@@ -1,191 +1,117 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+// frontend/src/contexts/AuthContext.tsx
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { apiRequest } from "@/api/client";
 
-export type UserType = 'tutor' | 'veterinarian';
-
-export interface User {
-  id: string;
+export type AuthUser = {
+  id: number;
   name: string;
   email: string;
-  type: UserType;
-  crmv?: string;
-}
+  role: "tutor" | "veterinarian" | string;
+  crmv?: string | null;
+  // compat: alguns lugares usam "type" em vez de "role"
+  type?: "tutor" | "veterinarian" | string;
+};
 
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string, type: UserType) => Promise<User | false>;
-  register: (
-    name: string,
+type LoginResponse = {
+  access_token: string;
+  user: AuthUser;
+};
+
+type AuthContextType = {
+  user: AuthUser | null;
+  login: (
     email: string,
     password: string,
-    type: UserType,
-    crmv?: string
-  ) => Promise<{ ok: boolean; message?: string }>;
+    roleHint?: string
+  ) => Promise<AuthUser | null>;
   logout: () => void;
-  isAuthenticated: boolean;
-}
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🔥 Pega a API URL do .env
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+type AuthProviderProps = {
+  children: ReactNode;
 };
 
-// Normaliza "tutor" | "veterinarian"
-const normalizeToUserType = (value: any): UserType => {
-  if (!value) return 'tutor';
-
-  const str = value.toString().trim().toLowerCase();
-
-  if (
-    str.includes('vet') ||
-    str.includes('veterin') ||
-    str === 'veterinarian'
-  ) {
-    return 'veterinarian';
-  }
-
-  return 'tutor';
-};
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? (JSON.parse(stored) as AuthUser) : null;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('univet_user');
-    if (savedUser) {
+    // Se tiver user no localStorage mas o state estiver nulo, sincroniza
+    if (!user && typeof window !== "undefined") {
       try {
-        const parsed = JSON.parse(savedUser);
-        const normalized: User = {
-          id: String(parsed.id),
-          name: parsed.name ?? '',
-          email: parsed.email,
-          type: normalizeToUserType(parsed.type ?? parsed.role),
-          crmv: parsed.crmv,
-        };
-        setUser(normalized);
-      } catch (e) {
-        console.error('Erro ao carregar usuário do localStorage:', e);
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          setUser(JSON.parse(stored) as AuthUser);
+        }
+      } catch {
+        // ignora erro de parse
       }
     }
-  }, []);
+  }, [user]);
 
-  // --------------------------
-  // LOGIN
-  // --------------------------
   const login = async (
     email: string,
     password: string,
-    type: UserType
-  ): Promise<User | false> => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    _roleHint?: string
+  ): Promise<AuthUser | null> => {
+    // Chama backend /api/auth/login
+    const data = await apiRequest<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (!response.ok) return false;
-
-      const data = await response.json();
-
-      const rawRole = data.user?.role;
-
-      const backendUser: User = {
-        id: String(data.user.id),
-        name: data.user.name ?? '',
-        email: data.user.email,
-        type: normalizeToUserType(rawRole),
-        crmv: data.user.crmv ?? undefined,
-      };
-
-      localStorage.setItem('univet_token', data.access_token);
-      localStorage.setItem('univet_user', JSON.stringify(backendUser));
-
-      setUser(backendUser);
-      return backendUser;
-    } catch (err) {
-      console.error('Erro login:', err);
-      return false;
+    // Salva token para o client.ts usar (Authorization: Bearer)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
     }
-  };
 
-  // --------------------------
-  // REGISTER
-  // --------------------------
-  const register = async (
-    name: string,
-    email: string,
-    password: string,
-    type: UserType,
-    crmv?: string
-  ): Promise<{ ok: boolean; message?: string }> => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          role: type === 'veterinarian' ? 'vet' : 'tutor',
-          crmv: type === 'veterinarian' ? crmv : undefined,
-        }),
-      });
+    const authUser: AuthUser = {
+      ...data.user,
+      // compat: garante que "type" exista se alguém usar
+      type: (data.user as any).type ?? data.user.role,
+    };
 
-      let data: any = null;
-      try {
-        data = await response.json();
-      } catch {
-        data = null;
-      }
-
-      if (!response.ok) {
-        return {
-          ok: false,
-          message: data?.message || 'Erro ao cadastrar',
-        };
-      }
-
-      const loggedUser = await login(email, password, type);
-
-      if (!loggedUser) {
-        return {
-          ok: false,
-          message: 'Cadastro realizado, mas houve erro ao fazer login automático.',
-        };
-      }
-
-      return { ok: true, message: data?.message };
-    } catch (err) {
-      console.error('Erro register:', err);
-      return { ok: false, message: 'Erro inesperado ao cadastrar.' };
-    }
+    setUser(authUser);
+    return authUser;
   };
 
   const logout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+    }
     setUser(null);
-    localStorage.removeItem('univet_user');
-    localStorage.removeItem('univet_token');
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        register,
-        logout,
-        isAuthenticated: !!user,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    login,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = (): AuthContextType => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+  }
+  return ctx;
 };

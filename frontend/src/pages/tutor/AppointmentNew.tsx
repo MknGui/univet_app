@@ -1,51 +1,121 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { MobileLayout } from '@/components/MobileLayout';
-import { MobileHeader } from '@/components/MobileHeader';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
-import { MapPin, Clock, Stethoscope } from 'lucide-react';
-import { mockVeterinarians, mockAnimals } from '@/data/mockData';
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { MobileLayout } from "@/components/MobileLayout";
+import { MobileHeader } from "@/components/MobileHeader";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { MapPin, Clock, Stethoscope } from "lucide-react";
+import { listPets, type Pet } from "@/api/pets";
+import { createAppointment } from "@/api/appointments";
 
-interface Animal {
-  id: string;
+interface AnimalOption {
+  id: number;
   name: string;
 }
 
+interface VetSlot {
+  date: string; // "YYYY-MM-DD"
+  times: string[];
+}
+
+interface Vet {
+  id: number;
+  name: string;
+  specialty: string;
+  location: string;
+  region: string;
+  slots: VetSlot[];
+}
+
+/**
+ * Por enquanto não existe backend para veterinários/agenda,
+ * então deixei uma lista fixa aqui. Quando tiver API de vets,
+ * é só trocar para um listVets() e ler os horários do backend.
+ */
+const VETS: Vet[] = [
+  {
+    id: 1,
+    name: "Dr. João Silva",
+    specialty: "Clínico Geral",
+    location: "Clínica Univet Centro",
+    region: "Centro",
+    slots: [
+      {
+        date: new Date().toISOString().split("T")[0],
+        times: ["09:00", "10:00", "11:00", "14:00", "15:30"],
+      },
+    ],
+  },
+  {
+    id: 2,
+    name: "Dra. Maria Souza",
+    specialty: "Dermatologia",
+    location: "Clínica Univet Zona Sul",
+    region: "Zona Sul",
+    slots: [
+      {
+        date: new Date().toISOString().split("T")[0],
+        times: ["08:30", "09:30", "13:00", "16:00"],
+      },
+    ],
+  },
+];
+
 const AppointmentNew = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation() as { state?: { animalId?: string } };
   const preSelectedAnimalId = location.state?.animalId;
-  
-  const [animals, setAnimals] = useState<Animal[]>([]);
-  const [formData, setFormData] = useState({
-    animalId: preSelectedAnimalId || '',
-    vetId: '',
-    date: '',
-    time: '',
-    type: '',
-    notes: ''
-  });
-  const [selectedRegion, setSelectedRegion] = useState('');
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
 
+  const [animals, setAnimals] = useState<AnimalOption[]>([]);
+  const [formData, setFormData] = useState({
+    animalId: preSelectedAnimalId || "",
+    vetId: "",
+    date: "",
+    time: "",
+    type: "",
+    notes: "",
+  });
+  const [selectedRegion, setSelectedRegion] = useState<string>("Todas");
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Carrega animais do backend (sem fallback para mocks)
   useEffect(() => {
-    const storedAnimals = JSON.parse(localStorage.getItem('univet_animals') || '[]');
-    if (storedAnimals.length > 0) {
-      setAnimals(storedAnimals);
-    } else {
-      setAnimals(mockAnimals.map(a => ({ id: a.id, name: a.name })));
-    }
+    const fetchAnimals = async () => {
+      try {
+        const pets: Pet[] = await listPets();
+        setAnimals(
+          pets.map((p) => ({
+            id: p.id,
+            name: p.name,
+          }))
+        );
+      } catch (err) {
+        console.error("Erro ao buscar pets da API:", err);
+        toast.error(
+          "Erro ao carregar seus animais. Cadastre um pet antes de agendar."
+        );
+      }
+    };
+
+    void fetchAnimals();
   }, []);
 
+  // Atualiza horários disponíveis conforme vet + data
   useEffect(() => {
     if (formData.vetId && formData.date) {
-      const vet = mockVeterinarians.find(v => v.id === formData.vetId);
-      const slot = vet?.availableSlots.find(s => s.date === formData.date);
+      const vet = VETS.find((v) => v.id === Number(formData.vetId));
+      const slot = vet?.slots.find((s) => s.date === formData.date);
       setAvailableTimes(slot?.times || []);
     } else {
       setAvailableTimes([]);
@@ -53,45 +123,58 @@ const AppointmentNew = () => {
   }, [formData.vetId, formData.date]);
 
   const appointmentTypes = [
-    'Consulta de rotina',
-    'Vacinação',
-    'Retorno',
-    'Emergência',
-    'Exame',
-    'Cirurgia'
+    "Consulta de rotina",
+    "Vacinação",
+    "Retorno",
+    "Emergência",
+    "Exame",
+    "Cirurgia",
   ];
 
-  const regions = ['Todas', ...new Set(mockVeterinarians.map(v => v.region))];
-  
-  const filteredVets = selectedRegion && selectedRegion !== 'Todas' 
-    ? mockVeterinarians.filter(v => v.region === selectedRegion)
-    : mockVeterinarians;
+  const regions = ["Todas", ...new Set(VETS.map((v) => v.region))];
 
-  const handleSubmit = () => {
-    if (!formData.animalId || !formData.vetId || !formData.date || !formData.time || !formData.type) {
-      toast.error('Preencha todos os campos obrigatórios');
+  const filteredVets =
+    selectedRegion && selectedRegion !== "Todas"
+      ? VETS.filter((v) => v.region === selectedRegion)
+      : VETS;
+
+  const handleSubmit = async () => {
+    if (
+      !formData.animalId ||
+      !formData.vetId ||
+      !formData.date ||
+      !formData.time ||
+      !formData.type
+    ) {
+      toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    const appointments = JSON.parse(localStorage.getItem('univet_appointments') || '[]');
-    const selectedVet = mockVeterinarians.find(v => v.id === formData.vetId);
-    const selectedAnimal = animals.find(a => a.id === formData.animalId);
-    
-    const newAppointment = {
-      id: Date.now().toString(),
-      ...formData,
-      animal: selectedAnimal?.name || '',
-      vet: selectedVet?.name || '',
-      location: selectedVet?.location || '',
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
+    try {
+      setLoading(true);
 
-    appointments.push(newAppointment);
-    localStorage.setItem('univet_appointments', JSON.stringify(appointments));
+      const scheduled_at = `${formData.date}T${formData.time}:00`;
 
-    toast.success('Agendamento solicitado com sucesso!');
-    navigate('/tutor/appointments');
+      await createAppointment({
+        pet_id: Number(formData.animalId),
+        vet_id: Number(formData.vetId),
+        scheduled_at,
+        // backend hoje espera "notes" conforme seu appointments.ts
+        reason: formData.notes
+          ? `${formData.type} - ${formData.notes}`
+          : formData.type,
+      });
+
+      toast.success("Agendamento solicitado com sucesso!");
+      navigate("/tutor/appointments");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error?.message ?? "Erro ao solicitar agendamento. Tente novamente."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -99,16 +182,21 @@ const AppointmentNew = () => {
       <MobileHeader title="Novo Agendamento" showBack />
 
       <div className="px-6 py-6 space-y-4">
-        {/* Animal Selection */}
+        {/* Animal */}
         <div className="mobile-card space-y-2">
           <Label htmlFor="animal">Animal *</Label>
-          <Select value={formData.animalId} onValueChange={(value) => setFormData({ ...formData, animalId: value })}>
+          <Select
+            value={formData.animalId}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, animalId: value }))
+            }
+          >
             <SelectTrigger className="h-12">
               <SelectValue placeholder="Selecione o animal" />
             </SelectTrigger>
             <SelectContent>
               {animals.map((animal) => (
-                <SelectItem key={animal.id} value={animal.id}>
+                <SelectItem key={animal.id} value={String(animal.id)}>
                   {animal.name}
                 </SelectItem>
               ))}
@@ -116,10 +204,15 @@ const AppointmentNew = () => {
           </Select>
         </div>
 
-        {/* Appointment Type */}
+        {/* Tipo de consulta */}
         <div className="mobile-card space-y-2">
           <Label htmlFor="type">Tipo de Consulta *</Label>
-          <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+          <Select
+            value={formData.type}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, type: value }))
+            }
+          >
             <SelectTrigger className="h-12">
               <SelectValue placeholder="Selecione o tipo" />
             </SelectTrigger>
@@ -133,10 +226,13 @@ const AppointmentNew = () => {
           </Select>
         </div>
 
-        {/* Region Filter */}
+        {/* Região */}
         <div className="mobile-card space-y-2">
           <Label htmlFor="region">Filtrar por Região</Label>
-          <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+          <Select
+            value={selectedRegion}
+            onValueChange={(value) => setSelectedRegion(value)}
+          >
             <SelectTrigger className="h-12">
               <SelectValue placeholder="Todas as regiões" />
             </SelectTrigger>
@@ -150,16 +246,22 @@ const AppointmentNew = () => {
           </Select>
         </div>
 
-        {/* Veterinarian Selection */}
+        {/* Veterinário */}
         <div className="space-y-3">
           <Label>Selecione o Veterinário *</Label>
           {filteredVets.map((vet) => (
             <div
               key={vet.id}
-              onClick={() => setFormData({ ...formData, vetId: vet.id, time: '' })}
+              onClick={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  vetId: String(vet.id),
+                  time: "",
+                }))
+              }
               role="button"
               className={`mobile-card w-full text-left hover:shadow-lg transition-all cursor-pointer ${
-                formData.vetId === vet.id ? 'ring-2 ring-primary' : ''
+                Number(formData.vetId) === vet.id ? "ring-2 ring-primary" : ""
               }`}
             >
               <div className="flex gap-4">
@@ -173,14 +275,16 @@ const AppointmentNew = () => {
                     <MapPin className="w-3 h-3" />
                     <span className="truncate">{vet.location}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{vet.region}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {vet.region}
+                  </p>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Date Selection */}
+        {/* Data */}
         {formData.vetId && (
           <div className="mobile-card space-y-2">
             <Label htmlFor="date">Data *</Label>
@@ -188,14 +292,20 @@ const AppointmentNew = () => {
               id="date"
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value, time: '' })}
-              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  date: e.target.value,
+                  time: "",
+                }))
+              }
+              min={new Date().toISOString().split("T")[0]}
               className="h-12"
             />
           </div>
         )}
 
-        {/* Time Selection */}
+        {/* Horários */}
         {availableTimes.length > 0 && (
           <div className="mobile-card space-y-3">
             <Label className="flex items-center gap-2">
@@ -206,11 +316,13 @@ const AppointmentNew = () => {
               {availableTimes.map((time) => (
                 <button
                   key={time}
-                  onClick={() => setFormData({ ...formData, time })}
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, time: time }))
+                  }
                   className={`h-12 rounded-lg border-2 font-medium transition-all ${
                     formData.time === time
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border hover:border-primary/50'
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-primary/50"
                   }`}
                 >
                   {time}
@@ -220,24 +332,33 @@ const AppointmentNew = () => {
           </div>
         )}
 
-        {/* Notes */}
+        {/* Observações */}
         <div className="mobile-card space-y-2">
           <Label htmlFor="notes">Observações</Label>
           <Textarea
             id="notes"
             placeholder="Descreva os sintomas ou motivo da consulta..."
             value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, notes: e.target.value }))
+            }
             className="min-h-24"
           />
         </div>
 
         <Button
           onClick={handleSubmit}
-          disabled={!formData.animalId || !formData.vetId || !formData.date || !formData.time || !formData.type}
+          disabled={
+            loading ||
+            !formData.animalId ||
+            !formData.vetId ||
+            !formData.date ||
+            !formData.time ||
+            !formData.type
+          }
           className="w-full h-12 text-base font-semibold gradient-primary"
         >
-          Solicitar Agendamento
+          {loading ? "Enviando..." : "Solicitar Agendamento"}
         </Button>
       </div>
     </MobileLayout>

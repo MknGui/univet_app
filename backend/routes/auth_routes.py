@@ -28,6 +28,9 @@ def register():
         role = "tutor"
 
     crmv = data.get("crmv")
+    specialty = data.get("specialty")
+    phone = data.get("phone")
+    clinic_id = data.get("clinic_id")
 
     # valida campos básicos
     if not name or not email or not password:
@@ -61,6 +64,9 @@ def register():
         password_hash=generate_password_hash(password),
         role=role,
         crmv=crmv if role == "veterinarian" else None,
+        specialty=specialty if role == "veterinarian" else None,
+        phone=phone,
+        clinic_id=clinic_id if role == "veterinarian" else None,
     )
     db.session.add(user)
     db.session.commit()

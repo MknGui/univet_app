@@ -46,7 +46,8 @@ const queryClient = new QueryClient();
 
 /* PROTEÇÃO DE ROTAS */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
 
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };

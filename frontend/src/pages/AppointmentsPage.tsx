@@ -23,6 +23,7 @@ const AppointmentsPage: React.FC = () => {
       const data = await listAppointments();
       setAppointments(data);
     } catch (err: any) {
+      console.error(err);
       setMessage(err.message ?? "Erro ao carregar agendamentos");
     } finally {
       setLoading(false);
@@ -41,13 +42,15 @@ const AppointmentsPage: React.FC = () => {
       await createAppointment({
         pet_id: Number(form.pet_id),
         vet_id: Number(form.vet_id),
+        // backend espera ISO completo
         scheduled_at: new Date(form.scheduled_at).toISOString(),
-        notes: form.notes || undefined,
+        reason: form.notes || undefined, // mapeia notes -> reason
       });
       setMessage("Consulta agendada com sucesso!");
       setForm({ pet_id: "", vet_id: "", scheduled_at: "", notes: "" });
       await loadAppointments();
     } catch (err: any) {
+      console.error(err);
       setMessage(err.message ?? "Erro ao agendar consulta");
     } finally {
       setLoading(false);
@@ -58,9 +61,7 @@ const AppointmentsPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-800">
-            Agendamentos
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-800">Agendamentos</h1>
           <button
             onClick={loadAppointments}
             className="text-sm px-3 py-1.5 rounded-lg border bg-white hover:bg-slate-100"
@@ -69,6 +70,7 @@ const AppointmentsPage: React.FC = () => {
           </button>
         </header>
 
+        {/* Formulário de novo agendamento */}
         <section className="bg-white rounded-2xl shadow p-4 space-y-3">
           <h2 className="text-lg font-semibold text-slate-800">
             Novo agendamento
@@ -106,7 +108,7 @@ const AppointmentsPage: React.FC = () => {
             />
             <textarea
               className="border rounded-lg px-3 py-2 md:col-span-2"
-              placeholder="Observações"
+              placeholder="Observações / motivo da consulta"
               value={form.notes}
               onChange={(e) =>
                 setForm((f) => ({ ...f, notes: e.target.value }))
@@ -125,18 +127,22 @@ const AppointmentsPage: React.FC = () => {
           )}
         </section>
 
+        {/* Lista de agendamentos */}
         <section className="bg-white rounded-2xl shadow p-4 space-y-3">
           <h2 className="text-lg font-semibold text-slate-800">
             Próximos agendamentos
           </h2>
+
           {loading && appointments.length === 0 && (
             <p className="text-sm text-slate-500">Carregando...</p>
           )}
+
           {!loading && appointments.length === 0 && (
             <p className="text-sm text-slate-500">
               Nenhum agendamento encontrado.
             </p>
           )}
+
           <ul className="divide-y text-sm">
             {appointments.map((a) => (
               <li key={a.id} className="py-2">
@@ -149,9 +155,9 @@ const AppointmentsPage: React.FC = () => {
                 <div className="text-xs text-slate-500">
                   Status: {a.status}
                 </div>
-                {a.notes && (
+                {a.reason && (
                   <div className="text-xs text-slate-500">
-                    Obs: {a.notes}
+                    Obs: {a.reason}
                   </div>
                 )}
               </li>

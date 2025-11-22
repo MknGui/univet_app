@@ -26,7 +26,8 @@ export interface PetVaccine {
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://192.168.1.5:5000";
 
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("univet_token");
+  // agora usamos o MESMO nome que o login salva
+  const token = localStorage.getItem("access_token");
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
