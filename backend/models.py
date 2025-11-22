@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from extensions import db
 
 
@@ -42,19 +42,28 @@ class Pet(db.Model):
         lazy=True,
     )
 
-    def to_dict(self):
-        return {
+    vaccines = db.relationship(
+        "PetVaccine",
+        back_populates="pet",
+        cascade="all, delete-orphan",
+        lazy=True,
+    )
+
+    def to_dict(self, include_vaccines: bool = False):
+        data = {
             "id": self.id,
             "name": self.name,
             "species": self.species,
             "sex": self.sex,
-            "age": self.age,   # << aqui
+            "age": self.age,
             "notes": self.notes,
             "owner_id": self.owner_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "breeds": [b.name for b in self.breeds],
         }
-
+        if include_vaccines:
+            data["vaccines"] = [v.to_dict() for v in self.vaccines]
+        return data
 
 
 class PetBreed(db.Model):
@@ -71,4 +80,33 @@ class PetBreed(db.Model):
             "id": self.id,
             "pet_id": self.pet_id,
             "name": self.name,
+        }
+
+
+class PetVaccine(db.Model):
+    __tablename__ = "pet_vaccines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pet_id = db.Column(db.Integer, db.ForeignKey("pets.id"), nullable=False)
+
+    name = db.Column(db.String(120), nullable=False)
+    lot = db.Column(db.String(80))
+    date = db.Column(db.Date, nullable=False)
+    next_dose = db.Column(db.Date)
+    notes = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    pet = db.relationship("Pet", back_populates="vaccines")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "pet_id": self.pet_id,
+            "name": self.name,
+            "lot": self.lot,
+            "date": self.date.isoformat() if self.date else None,
+            "next_dose": self.next_dose.isoformat() if self.next_dose else None,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

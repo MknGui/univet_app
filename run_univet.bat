@@ -14,7 +14,7 @@ echo      Inicializando Frontend
 echo ================================
 
 REM --- abre nova janela para o frontend ---
-start cmd /k "cd /d E:\Faculdade\2025\Final\univet_app\frontend && npm run dev"
+start cmd /k "cd /d E:\Faculdade\2025\Final\univet_app\frontend && npm run dev -- --host 0.0.0.0 --port 8080"
 
 echo.
 echo ================================

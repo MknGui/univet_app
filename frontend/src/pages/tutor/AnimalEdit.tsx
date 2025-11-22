@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { getPet, updatePet } from '@/api/pets';
 
-interface Animal {
+interface AnimalForm {
   id: string;
   name: string;
   species: string;
@@ -18,45 +19,126 @@ interface Animal {
 }
 
 const AnimalEdit = () => {
-  const { id } = useParams();
+  const params = useParams();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<Animal>({
+  // Suporta rota com :id ou :animalId
+  const petId = params.id ?? (params as any).animalId;
+
+  const [formData, setFormData] = useState<AnimalForm>({
     id: '',
     name: '',
     species: '',
     breed: '',
     age: '',
-    sex: ''
+    sex: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const animals = JSON.parse(localStorage.getItem('univet_animals') || '[]');
-    const animal = animals.find((a: Animal) => a.id === id);
-    
-    if (!animal) {
+    const loadAnimal = async () => {
+      if (!petId) {
+        toast.error('Animal não encontrado');
+        navigate('/tutor/animals');
+        return;
+      }
+
+      try {
+        const pet = await getPet(petId);
+        const anyPet = pet as any;
+
+        const breed =
+          anyPet.breed ||
+          (Array.isArray(anyPet.breeds) && anyPet.breeds.length > 0
+            ? anyPet.breeds.join(', ')
+            : '');
+
+        setFormData({
+          id: String(pet.id),
+          name: pet.name ?? '',
+          species: pet.species ?? '',
+          breed,
+          age: pet.age != null ? String(pet.age) : '',
+          sex: pet.sex ?? '',
+        });
+      } catch (error: any) {
+        console.error(error);
+        toast.error(error.message || 'Erro ao carregar animal');
+        navigate('/tutor/animals');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAnimal();
+  }, [petId, navigate]);
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.species || !formData.breed || !formData.sex) {
+      toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    let ageNumber: number | null = null;
+    if (formData.age.trim() !== '') {
+      const n = Number(formData.age);
+      if (!Number.isFinite(n) || n < 0) {
+        toast.error('Idade deve ser um número válido (em anos)');
+        return;
+      }
+      ageNumber = n;
+    }
+
+    if (!petId) {
       toast.error('Animal não encontrado');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updatePet(petId, {
+        name: formData.name.trim(),
+        species: formData.species,
+        breed: formData.breed,
+        sex: formData.sex,
+        age: ageNumber,
+      });
+
+      toast.success('Animal atualizado com sucesso!');
       navigate('/tutor/animals');
-      return;
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao salvar alterações');
+    } finally {
+      setSaving(false);
     }
-    
-    setFormData(animal);
-  }, [id, navigate]);
-
-  const handleSubmit = () => {
-    if (!formData.name || !formData.species || !formData.breed || !formData.age || !formData.sex) {
-      toast.error('Preencha todos os campos');
-      return;
-    }
-
-    const animals = JSON.parse(localStorage.getItem('univet_animals') || '[]');
-    const updatedAnimals = animals.map((a: Animal) => 
-      a.id === id ? formData : a
-    );
-    localStorage.setItem('univet_animals', JSON.stringify(updatedAnimals));
-
-    toast.success('Animal atualizado com sucesso!');
-    navigate(`/tutor/animal/${id}`);
   };
+
+  if (loading) {
+    return (
+      <MobileLayout showBottomNav={false}>
+        <MobileHeader title="Editar Animal" showBack />
+        <div className="px-6 py-6">
+          <div className="mobile-card text-center py-12">
+            <p className="text-sm text-muted-foreground">Carregando dados do animal...</p>
+          </div>
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  if (!formData.id) {
+    return (
+      <MobileLayout showBottomNav={false}>
+        <MobileHeader title="Editar Animal" showBack />
+        <div className="px-6 py-6">
+          <div className="mobile-card text-center py-12">
+            <p className="text-sm text-muted-foreground">Animal não encontrado.</p>
+          </div>
+        </div>
+      </MobileLayout>
+    );
+  }
 
   return (
     <MobileLayout showBottomNav={false}>
@@ -77,7 +159,10 @@ const AnimalEdit = () => {
 
           <div className="space-y-2">
             <Label htmlFor="species">Espécie</Label>
-            <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
+            <Select
+              value={formData.species}
+              onValueChange={(value) => setFormData({ ...formData, species: value })}
+            >
               <SelectTrigger className="h-12">
                 <SelectValue placeholder="Selecione a espécie" />
               </SelectTrigger>
@@ -90,21 +175,24 @@ const AnimalEdit = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="breed">Raça</Label>
+            <Label htmlFor="breed">Raça(s)</Label>
             <Input
               id="breed"
-              placeholder="Ex: Golden Retriever"
+              placeholder="Ex: Golden Retriever, SRD"
               value={formData.breed}
               onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
               className="h-12"
             />
+            <p className="text-xs text-muted-foreground">
+              Use vírgula para separar múltiplas raças.
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="age">Idade</Label>
+            <Label htmlFor="age">Idade (em anos)</Label>
             <Input
               id="age"
-              placeholder="Ex: 3 anos"
+              placeholder="Ex: 3"
               value={formData.age}
               onChange={(e) => setFormData({ ...formData, age: e.target.value })}
               className="h-12"
@@ -113,7 +201,10 @@ const AnimalEdit = () => {
 
           <div className="space-y-2">
             <Label htmlFor="sex">Sexo</Label>
-            <Select value={formData.sex} onValueChange={(value) => setFormData({ ...formData, sex: value })}>
+            <Select
+              value={formData.sex}
+              onValueChange={(value) => setFormData({ ...formData, sex: value })}
+            >
               <SelectTrigger className="h-12">
                 <SelectValue placeholder="Selecione o sexo" />
               </SelectTrigger>
@@ -126,9 +217,10 @@ const AnimalEdit = () => {
 
           <Button
             onClick={handleSubmit}
-            className="w-full h-12 text-base font-semibold gradient-primary mt-6"
+            disabled={saving}
+            className="w-full h-12 text-base font-semibold gradient-primary mt-2"
           >
-            Salvar Alterações
+            {saving ? 'Salvando...' : 'Salvar alterações'}
           </Button>
         </div>
       </div>

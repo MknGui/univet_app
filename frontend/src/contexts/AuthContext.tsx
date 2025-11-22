@@ -26,6 +26,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// 🔥 Pega a API URL do .env
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -34,14 +37,14 @@ export const useAuth = () => {
   return context;
 };
 
-// Normaliza qualquer coisa que venha do backend para "tutor" | "veterinarian"
+// Normaliza "tutor" | "veterinarian"
 const normalizeToUserType = (value: any): UserType => {
   if (!value) return 'tutor';
 
   const str = value.toString().trim().toLowerCase();
 
   if (
-    str.includes('vet') ||       // vet, veterinarian, veterinario...
+    str.includes('vet') ||
     str.includes('veterin') ||
     str === 'veterinarian'
   ) {
@@ -73,28 +76,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // -----------------------------
-  // LOGIN REAL (Flask)
-  // -----------------------------
+  // --------------------------
+  // LOGIN
+  // --------------------------
   const login = async (
     email: string,
     password: string,
     type: UserType
   ): Promise<User | false> => {
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/auth/login', {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
 
       if (!response.ok) return false;
 
       const data = await response.json();
 
       const rawRole = data.user?.role;
-      console.log('[Auth] role vinda do backend:', rawRole);
 
       const backendUser: User = {
         id: String(data.user.id),
@@ -108,7 +109,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('univet_user', JSON.stringify(backendUser));
 
       setUser(backendUser);
-
       return backendUser;
     } catch (err) {
       console.error('Erro login:', err);
@@ -116,9 +116,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // -----------------------------
-  // REGISTER REAL (Flask) + auto login, retornando mensagem
-  // -----------------------------
+  // --------------------------
+  // REGISTER
+  // --------------------------
   const register = async (
     name: string,
     email: string,
@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     crmv?: string
   ): Promise<{ ok: boolean; message?: string }> => {
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -153,8 +153,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
       }
 
-      // se cadastrou, já faz login automático
       const loggedUser = await login(email, password, type);
+
       if (!loggedUser) {
         return {
           ok: false,
