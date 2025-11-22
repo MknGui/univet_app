@@ -110,3 +110,40 @@ class PetVaccine(db.Model):
             "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+class Appointment(db.Model):
+    __tablename__ = "appointments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pet_id = db.Column(db.Integer, nullable=False)
+    tutor_id = db.Column(db.Integer, nullable=False)
+    vet_id = db.Column(db.Integer, nullable=False)
+
+    scheduled_at = db.Column(db.DateTime, nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+
+    status = db.Column(db.String(20), nullable=False, default="PENDING")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    def __repr__(self):
+        return f"<Appointment {self.id} pet={self.pet_id} status={self.status}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "pet_id": self.pet_id,
+            "tutor_id": self.tutor_id,
+            "vet_id": self.vet_id,
+            "scheduled_at": self.scheduled_at.isoformat() if self.scheduled_at else None,
+            "reason": self.reason,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
