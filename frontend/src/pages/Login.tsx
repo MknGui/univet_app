@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Heart, Mail, Lock } from 'lucide-react';
+import UnivetLogo from '@/assets/univet-logo.png';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -41,16 +42,19 @@ const Login = () => {
   return (
     <div className="mobile-container gradient-hero min-h-screen">
       <div className="flex flex-col items-center justify-center min-h-screen px-6">
-        {/* Logo */}
+        {/* Logo/Brand */}
         <div className="mb-8 text-center">
-          <div className="w-20 h-20 mx-auto mb-4 bg-primary rounded-3xl flex items-center justify-center shadow-lg">
-            <Heart className="w-10 h-10 text-primary-foreground" fill="currentColor" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">UNIVET</h1>
+          <img
+            src={UnivetLogo}
+            alt="UnVet"
+            className="mx-auto mb-4 w-40 max-w-[70%]"
+          />
           <p className="text-muted-foreground text-sm">
             Sistema Integrado de Gestão Veterinária
           </p>
         </div>
+
+
 
         {/* Login Form */}
         <div className="w-full max-w-sm mobile-card space-y-4">

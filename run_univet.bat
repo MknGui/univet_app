@@ -6,7 +6,7 @@ echo      Inicializando Backend
 echo ================================
 
 REM --- abre nova janela para o backend ---
-start cmd /k "cd /d E:\Faculdade\2025\Final\univet_app\backend && venv\Scripts\activate && set FLASK_APP=app:create_app && set FLASK_ENV=development && flask run"
+start cmd /k "cd /d E:\Faculdade\2025\Final\univet_app\backend && venv\Scripts\activate && set FLASK_APP=app:create_app && set FLASK_ENV=development && flask run --host=0.0.0.0 --port=5000"
 
 echo.
 echo ================================

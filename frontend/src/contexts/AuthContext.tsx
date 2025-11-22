@@ -82,11 +82,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     type: UserType
   ): Promise<User | false> => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('http://192.168.1.5:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+
 
       if (!response.ok) return false;
 
@@ -126,14 +127,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     crmv?: string
   ): Promise<{ ok: boolean; message?: string }> => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('http://192.168.1.5:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           email,
           password,
-          // backend espera "vet" ou "tutor"
           role: type === 'veterinarian' ? 'vet' : 'tutor',
           crmv: type === 'veterinarian' ? crmv : undefined,
         }),
