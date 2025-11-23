@@ -39,6 +39,7 @@ import VetAppointmentDetail from "./pages/vet/AppointmentDetail";
 import VetNotifications from "./pages/vet/Notifications";
 import VetProfile from "./pages/vet/Profile";
 import VetProfileEdit from "./pages/vet/ProfileEdit";
+import VetClinics from "@/pages/vet/Clinics";
 
 import NotFound from "./pages/NotFound";
 
@@ -315,7 +316,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/vet/clinics"
+              element={
+                <ProtectedRoute>
+                  <VetClinics />
+                </ProtectedRoute>
+              }
+            />
             {/* rota catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>

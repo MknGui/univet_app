@@ -1,54 +1,47 @@
+// src/api/client.ts
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL ?? "http://192.168.1.5:5000"; // <-- seu IP da máquina
 
-export function getApiBaseUrl() {
-  return API_BASE_URL;
-}
-
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
-}
+type ApiRequestOptions = RequestInit & {
+  // para não ter que repetir o tipo toda hora
+};
 
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
-  const url = API_BASE_URL + path;
+  const token = localStorage.getItem("access_token");
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers ?? {}),
-  };
-
-  const token = getAuthToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(`${API_BASE_URL}/api${path}`, {
     ...options,
     headers,
   });
 
   if (!response.ok) {
-    let errorBody: unknown;
+    let message = `Erro na requisição (${response.status})`;
     try {
-      errorBody = await response.json();
+      const data = await response.json();
+      if (data?.message) {
+        message = data.message;
+      }
     } catch {
-      errorBody = await response.text();
+      // ignora parse de erro
     }
-    console.error("API error:", response.status, errorBody);
-    throw new Error(
-      (errorBody as any)?.message ??
-        `Erro na API (${response.status} ${response.statusText})`
-    );
+    throw new Error(message);
   }
 
-  // Suporta rotas sem corpo, mas nosso back retorna JSON
-  try {
-    return (await response.json()) as T;
-  } catch {
-    return {} as T;
+  // se não tiver body (204, por exemplo), só retorna undefined
+  if (response.status === 204) {
+    return undefined as T;
   }
+
+  return (await response.json()) as T;
 }

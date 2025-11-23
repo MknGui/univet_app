@@ -17,58 +17,26 @@ import { toast } from "sonner";
 import { MapPin, Clock, Stethoscope } from "lucide-react";
 import { listPets, type Pet } from "@/api/pets";
 import { createAppointment } from "@/api/appointments";
+import { listVets, type VetOption } from "@/api/vets";
 
 interface AnimalOption {
   id: number;
   name: string;
 }
 
-interface VetSlot {
-  date: string; // "YYYY-MM-DD"
-  times: string[];
-}
-
-interface Vet {
-  id: number;
-  name: string;
-  specialty: string;
-  location: string;
-  region: string;
-  slots: VetSlot[];
-}
-
-/**
- * Por enquanto não existe backend para veterinários/agenda,
- * então deixei uma lista fixa aqui. Quando tiver API de vets,
- * é só trocar para um listVets() e ler os horários do backend.
- */
-const VETS: Vet[] = [
-  {
-    id: 1,
-    name: "Dr. João Silva",
-    specialty: "Clínico Geral",
-    location: "Clínica Univet Centro",
-    region: "Centro",
-    slots: [
-      {
-        date: new Date().toISOString().split("T")[0],
-        times: ["09:00", "10:00", "11:00", "14:00", "15:30"],
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Dra. Maria Souza",
-    specialty: "Dermatologia",
-    location: "Clínica Univet Zona Sul",
-    region: "Zona Sul",
-    slots: [
-      {
-        date: new Date().toISOString().split("T")[0],
-        times: ["08:30", "09:30", "13:00", "16:00"],
-      },
-    ],
-  },
+// horários padrão para qualquer vet/data
+const DEFAULT_TIMES = [
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
 ];
 
 const AppointmentNew = () => {
@@ -77,6 +45,8 @@ const AppointmentNew = () => {
   const preSelectedAnimalId = location.state?.animalId;
 
   const [animals, setAnimals] = useState<AnimalOption[]>([]);
+  const [vets, setVets] = useState<VetOption[]>([]);
+
   const [formData, setFormData] = useState({
     animalId: preSelectedAnimalId || "",
     vetId: "",
@@ -85,11 +55,12 @@ const AppointmentNew = () => {
     type: "",
     notes: "",
   });
+
   const [selectedRegion, setSelectedRegion] = useState<string>("Todas");
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega animais do backend (sem fallback para mocks)
+  // Carrega animais do backend
   useEffect(() => {
     const fetchAnimals = async () => {
       try {
@@ -111,12 +82,27 @@ const AppointmentNew = () => {
     void fetchAnimals();
   }, []);
 
+  // Carrega veterinários do backend
+  useEffect(() => {
+    const fetchVets = async () => {
+      try {
+        const data = await listVets();
+        setVets(data);
+      } catch (err) {
+        console.error("Erro ao buscar vets da API:", err);
+        toast.error(
+          "Erro ao carregar veterinários. Tente novamente mais tarde."
+        );
+      }
+    };
+
+    void fetchVets();
+  }, []);
+
   // Atualiza horários disponíveis conforme vet + data
   useEffect(() => {
     if (formData.vetId && formData.date) {
-      const vet = VETS.find((v) => v.id === Number(formData.vetId));
-      const slot = vet?.slots.find((s) => s.date === formData.date);
-      setAvailableTimes(slot?.times || []);
+      setAvailableTimes(DEFAULT_TIMES);
     } else {
       setAvailableTimes([]);
     }
@@ -131,12 +117,23 @@ const AppointmentNew = () => {
     "Cirurgia",
   ];
 
-  const regions = ["Todas", ...new Set(VETS.map((v) => v.region))];
+  const regions = [
+    "Todas",
+    ...Array.from(
+      new Set(
+        vets
+          .map((v) => v.region || "Outras regiões")
+          .filter((r) => r && r.trim().length > 0)
+      )
+    ),
+  ];
 
   const filteredVets =
     selectedRegion && selectedRegion !== "Todas"
-      ? VETS.filter((v) => v.region === selectedRegion)
-      : VETS;
+      ? vets.filter(
+          (v) => (v.region || "Outras regiões") === selectedRegion
+        )
+      : vets;
 
   const handleSubmit = async () => {
     if (
@@ -159,7 +156,7 @@ const AppointmentNew = () => {
         pet_id: Number(formData.animalId),
         vet_id: Number(formData.vetId),
         scheduled_at,
-        // backend hoje espera "notes" conforme seu appointments.ts
+        // backend hoje usa "reason"
         reason: formData.notes
           ? `${formData.type} - ${formData.notes}`
           : formData.type,
@@ -270,14 +267,26 @@ const AppointmentNew = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{vet.name}</h3>
-                  <p className="text-sm text-primary">{vet.specialty}</p>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    <span className="truncate">{vet.location}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {vet.region}
-                  </p>
+                  {vet.specialty && (
+                    <p className="text-sm text-primary">{vet.specialty}</p>
+                  )}
+                  {(vet.clinic_name || vet.region) && (
+                    <>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        {vet.clinic_name && (
+                          <>
+                            <MapPin className="w-3 h-3" />
+                            <span className="truncate">{vet.clinic_name}</span>
+                          </>
+                        )}
+                      </div>
+                      {vet.region && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {vet.region}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

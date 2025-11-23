@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { MobileLayout } from '@/components/MobileLayout';
-import { MobileHeader } from '@/components/MobileHeader';
-import { Button } from '@/components/ui/button';
-import { User, Award, LogOut, ChevronRight } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { MobileLayout } from "@/components/MobileLayout";
+import { MobileHeader } from "@/components/MobileHeader";
+import { Button } from "@/components/ui/button";
+import { User, Award, LogOut, ChevronRight, Building2 } from "lucide-react";
 
 const VetProfile = () => {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ const VetProfile = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -26,18 +26,22 @@ const VetProfile = () => {
           </div>
           <h2 className="text-xl font-bold mb-1">{user?.name}</h2>
           <p className="text-sm text-muted-foreground mb-2">{user?.email}</p>
+
           {user?.crmv && (
             <div className="flex items-center justify-center gap-2 mb-2">
               <Award className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">{user.crmv}</span>
+              <span className="text-sm font-medium text-primary">
+                {user.crmv}
+              </span>
             </div>
           )}
+
           <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
             Veterinário(a)
           </span>
         </div>
 
-        {/* Stats */}
+        {/* Stats (placeholder por enquanto) */}
         <div className="grid grid-cols-2 gap-3">
           <div className="mobile-card text-center">
             <p className="text-2xl font-bold text-primary">12</p>
@@ -51,14 +55,32 @@ const VetProfile = () => {
 
         {/* Menu Items */}
         <div className="mobile-card space-y-1">
+          {/* Editar Perfil */}
           <button
-            onClick={() => navigate('/vet/profile/edit')}
+            onClick={() => navigate("/vet/profile/edit")}
             className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
           >
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
             <span className="flex-1 text-left font-medium">Editar Perfil</span>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </button>
+
+          {/* Clínicas */}
+          <button
+            onClick={() => navigate("/vet/clinics")}
+            className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+          >
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">Clínicas</div>
+              <div className="text-xs text-muted-foreground">
+                Selecionar clínica atual ou cadastrar novas
+              </div>
+            </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
