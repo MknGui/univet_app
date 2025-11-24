@@ -187,3 +187,32 @@ class Clinic(db.Model):
             "zip_code": self.zip_code,
             "phone": self.phone,
         }
+
+class Triage(db.Model):
+    __tablename__ = "triages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pet_id = db.Column(db.Integer, db.ForeignKey("pets.id"), nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    symptoms = db.Column(db.Text, nullable=False)
+    risk_level = db.Column(db.String(32), nullable=False)
+    ai_summary = db.Column(db.Text, nullable=False)
+    recommendations = db.Column(db.Text, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    pet = db.relationship("Pet", backref="triages")
+    tutor = db.relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "pet_id": self.pet_id,
+            "tutor_id": self.tutor_id,
+            "symptoms": self.symptoms,
+            "risk_level": self.risk_level,
+            "ai_summary": self.ai_summary,
+            "recommendations": self.recommendations,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
