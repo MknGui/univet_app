@@ -1,330 +1,244 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { MobileLayout } from '@/components/MobileLayout';
-import { MobileHeader } from '@/components/MobileHeader';
-import { Button } from '@/components/ui/button';
-import { Dog, Cat, Calendar, Edit, Trash2, ChevronRight, Syringe, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { getVaccinesByAnimalId, getTriagesByAnimalId } from '@/data/mockData';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { MobileLayout } from "@/components/MobileLayout";
+import { MobileHeader } from "@/components/MobileHeader";
+import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { listPets, Pet } from '@/api/pets';
+  FileText,
+  Stethoscope,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  Appointment,
+  AppointmentStatus,
+  getAppointment,
+  cancelAppointment,
+} from "@/api/appointments";
 
-interface Animal {
-  id: string;
-  name: string;
-  species: 'dog' | 'cat' | 'other';
-  breed: string;
-  age: string;
-  sex: 'male' | 'female';
-}
-
-const mapPetToAnimal = (pet: Pet): Animal => {
-  const rawSpecies = (pet.species || 'other').toLowerCase();
-  const species: 'dog' | 'cat' | 'other' =
-    rawSpecies === 'dog'
-      ? 'dog'
-      : rawSpecies === 'cat'
-      ? 'cat'
-      : 'other';
-
-  const rawSex = (pet.sex || '').toLowerCase();
-  const sex: 'male' | 'female' =
-    rawSex === 'female' || rawSex === 'fêmea'
-      ? 'female'
-      : 'male';
-
-  const anyPet = pet as any;
-  const breed =
-    anyPet.breed ||
-    (Array.isArray(anyPet.breeds) && anyPet.breeds.length > 0
-      ? anyPet.breeds.join(', ')
-      : 'SRD / Não informada');
-
-  return {
-    id: String(pet.id),
-    name: pet.name,
-    species,
-    breed,
-    age: 'Não informada',
-    sex,
-  };
+const statusLabels: Record<AppointmentStatus, string> = {
+  PENDING: "Pendente",
+  CONFIRMED: "Confirmada",
+  CANCELLED: "Cancelada",
+  COMPLETED: "Concluída",
 };
 
-const AnimalDetails = () => {
+const statusClasses: Record<AppointmentStatus, string> = {
+  PENDING:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+  CONFIRMED:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+  COMPLETED: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
+};
+
+const AppointmentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [animal, setAnimal] = useState<Animal | null>(null);
-  const [vaccines, setVaccines] = useState<any[]>([]);
-  const [recentTriages, setRecentTriages] = useState<any[]>([]);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!id) {
-        toast.error('Animal não encontrado');
-        navigate('/tutor/animals');
-        return;
-      }
+    if (!id) {
+      toast.error("Consulta não encontrada");
+      navigate("/tutor/dashboard");
+      return;
+    }
 
+    const load = async () => {
       try {
-        const pets = await listPets();
-        const pet = pets.find((p) => String(p.id) === id);
-
-        if (!pet) {
-          toast.error('Animal não encontrado');
-          navigate('/tutor/animals');
-          return;
-        }
-
-        setAnimal(mapPetToAnimal(pet));
-
-        const animalVaccines = getVaccinesByAnimalId(id);
-        setVaccines(animalVaccines);
-
-        const animalTriages = getTriagesByAnimalId(id).slice(0, 3);
-        setRecentTriages(animalTriages);
+        const data = await getAppointment(Number(id));
+        setAppointment(data);
       } catch (error) {
         console.error(error);
-        toast.error('Erro ao carregar informações do animal');
-        navigate('/tutor/animals');
+        toast.error("Erro ao carregar consulta");
+        navigate("/tutor/dashboard");
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    load();
   }, [id, navigate]);
 
-  const handleDelete = () => {
-    // TODO: conectar com DELETE /api/pets/:id no backend
-    toast.info('Remoção de animal ainda não está implementada no backend (MVP).');
+  const handleCancel = async () => {
+    if (!appointment) return;
+
+    if (appointment.status === "CANCELLED") {
+      toast.info("Essa consulta já está cancelada.");
+      return;
+    }
+
+    if (appointment.status === "COMPLETED") {
+      toast.info("Não é possível cancelar uma consulta já concluída.");
+      return;
+    }
+
+    try {
+      setCancelLoading(true);
+      const updated = await cancelAppointment(appointment.id);
+      setAppointment(updated);
+      toast.success("Consulta cancelada com sucesso.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao cancelar a consulta.");
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
-  if (loading || !animal) {
+  const formatDateTime = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const date = new Date(iso);
+    const datePart = date.toLocaleDateString("pt-BR");
+    const timePart = date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${datePart} às ${timePart}`;
+  };
+
+  if (loading || !appointment) {
     return (
       <MobileLayout showBottomNav={false}>
-        <MobileHeader title="Detalhes do Animal" showBack />
+        <MobileHeader title="Detalhes da Consulta" showBack />
         <div className="px-6 py-6">
           <div className="mobile-card text-center py-12">
-            <p className="text-sm text-muted-foreground">Carregando informações do animal...</p>
+            <p className="text-sm text-muted-foreground">
+              Carregando detalhes da consulta...
+            </p>
           </div>
         </div>
       </MobileLayout>
     );
   }
 
-  const SpeciesIcon = animal.species === 'cat' ? Cat : Dog;
+  const scheduled = formatDateTime(appointment.scheduled_at);
+  const createdAt = appointment.created_at
+    ? new Date(appointment.created_at).toLocaleDateString("pt-BR")
+    : null;
+
+  const statusLabel = statusLabels[appointment.status];
+  const statusClass = statusClasses[appointment.status];
 
   return (
     <MobileLayout showBottomNav={false}>
-      <MobileHeader title="Detalhes do Animal" showBack />
+      <MobileHeader title="Detalhes da Consulta" showBack />
 
       <div className="px-6 py-6 space-y-6">
-        {/* Animal Header */}
+        {/* Header */}
         <div className="mobile-card text-center">
-          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <SpeciesIcon className="w-12 h-12 text-primary" />
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Stethoscope className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">{animal.name}</h2>
-          <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-            {animal.species === 'dog'
-              ? 'Cachorro'
-              : animal.species === 'cat'
-              ? 'Gato'
-              : 'Outro'}
-          </span>
-        </div>
+          <h2 className="text-xl font-bold mb-1">
+            Consulta {appointment.id}
+          </h2>
 
-        {/* Info Cards */}
-        <div className="mobile-card space-y-4">
-          <div className="flex justify-between items-center py-2 border-b border-border">
-            <span className="text-muted-foreground">Raça</span>
-            <span className="font-semibold">{animal.breed}</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-border">
-            <span className="text-muted-foreground">Idade</span>
-            <span className="font-semibold">{animal.age}</span>
-          </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="text-muted-foreground">Sexo</span>
-            <span className="font-semibold">
-              {animal.sex === 'male' ? 'Macho' : 'Fêmea'}
+          {scheduled && (
+            <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <Clock className="w-4 h-4" />
+              {scheduled}
+            </p>
+          )}
+
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}
+            >
+              {appointment.status === "CONFIRMED" && (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+              {appointment.status === "PENDING" && (
+                <AlertTriangle className="w-3 h-3" />
+              )}
+              {appointment.status === "CANCELLED" && (
+                <XCircle className="w-3 h-3" />
+              )}
+              <span>{statusLabel}</span>
             </span>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={() => navigate('/tutor/triage')}
-            className="h-20 flex flex-col gap-2 gradient-primary"
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-sm">Nova Triagem</span>
-          </Button>
-          <Button
-            onClick={() => navigate('/tutor/appointment/new')}
-            variant="outline"
-            className="h-20 flex flex-col gap-2"
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-sm">Agendar</span>
-          </Button>
-        </div>
-
-        {/* Vaccination Card */}
-        <div className="mobile-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Syringe className="w-5 h-5 text-primary" />
-              📘 Carteira de Vacinação
-            </h3>
-            <Button
-              onClick={() => toast.info('Funcionalidade em desenvolvimento')}
-              size="sm"
-              variant="outline"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Nova Vacina
-            </Button>
-          </div>
-
-          {vaccines.length > 0 ? (
-            <div className="space-y-3">
-              {vaccines.map((vaccine) => (
-                <div key={vaccine.id} className="border border-border rounded-lg p-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">{vaccine.name}</h4>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(vaccine.date).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Lote: {vaccine.lot}
-                    </p>
-                  </div>
-                  {vaccine.nextDose && (
-                    <p className="text-xs text-primary mt-1">
-                      Próxima dose:{' '}
-                      {new Date(vaccine.nextDose).toLocaleDateString('pt-BR')}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhuma vacina registrada
-            </p>
-          )}
-        </div>
-
-        {/* Recent Triages */}
-        {recentTriages.length > 0 && (
-          <div className="mobile-card">
-            <h3 className="font-semibold mb-4">Triagens Recentes</h3>
-            <div className="space-y-3">
-              {recentTriages.map((triage) => (
-                <div key={triage.id} className="border border-border rounded-lg p-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {triage.symptoms.join(', ')}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(triage.date).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        triage.urgency === 'high'
-                          ? 'bg-red-500/10 text-red-500'
-                          : triage.urgency === 'medium'
-                          ? 'bg-warning/10 text-warning'
-                          : 'bg-success/10 text-success'
-                      }`}
-                    >
-                      {triage.urgency === 'high'
-                        ? 'Urgente'
-                        : triage.urgency === 'medium'
-                        ? 'Atenção'
-                        : 'Normal'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+        {/* Info básica */}
+        <div className="mobile-card space-y-3">
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-primary mt-1" />
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">Motivo da consulta</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {appointment.reason || "Nenhum motivo informado."}
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Animal History */}
-        <div className="mobile-card">
-          <h3 className="font-semibold mb-4">Histórico Completo</h3>
-          <Button
-            onClick={() => navigate(`/tutor/animal/${id}/history`)}
-            variant="outline"
-            className="w-full justify-between"
-          >
-            <span>Ver Histórico Detalhado</span>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+            <div>
+              <p className="font-medium">
+                Paciente
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {appointment.pet_name} - ID {appointment.pet_id}
+              </p>
+            </div>
+
+            <div>
+              <p className="font-medium">
+                Tutor
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {appointment.tutor_name} - ID {appointment.tutor_id}
+              </p>
+            </div>
+
+            <div>
+              <p className="font-medium">
+                Veterinário
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {appointment.vet_name} - ID {appointment.vet_id}
+              </p>
+            </div>
+
+            {createdAt && (
+              <div>
+                <p className="font-medium">Criada em</p>
+                <p className="text-xs text-muted-foreground">
+                  {createdAt}
+                </p>
+              </div>
+            )}
+          </div>
+
+
         </div>
 
-        {/* Action Buttons */}
+        {/* Ações */}
         <div className="space-y-3">
           <Button
-            onClick={() => navigate(`/tutor/animal/${id}/edit`)}
             variant="outline"
-            className="w-full h-12"
+            className="w-full"
+            onClick={() => navigate(-1)}
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar Informações
+            Voltar
           </Button>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full h-12 text-destructive hover:bg-destructive/10 border-destructive/20"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Remover Animal
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remover Animal</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja remover {animal.name}? Esta ação não pode ser
-                  desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Remover
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button
+            variant="destructive"
+            className="w-full"
+            disabled={cancelLoading}
+            onClick={handleCancel}
+          >
+            {cancelLoading ? "Cancelando..." : "Cancelar consulta"}
+          </Button>
         </div>
       </div>
     </MobileLayout>
   );
 };
 
-export default AnimalDetails;
+export default AppointmentDetail;

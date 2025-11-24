@@ -26,6 +26,27 @@ def _parse_scheduled_at(value: str):
         return None
 
 
+def _serialize_appointment(appointment: Appointment):
+    """
+    Monta o dicionário que será enviado para o frontend.
+
+    Usa o to_dict padrão do modelo e enriquece com nomes de pet, tutor e vet.
+    Ajuste os atributos .name se no seu modelo eles tiverem outro nome
+    (por exemplo full_name).
+    """
+    base = appointment.to_dict()
+
+    pet = Pet.query.get(appointment.pet_id)
+    tutor = User.query.get(appointment.tutor_id)
+    vet = User.query.get(appointment.vet_id)
+
+    base["pet_name"] = pet.name if pet else None
+    base["tutor_name"] = tutor.name if tutor else None
+    base["vet_name"] = vet.name if vet else None
+
+    return base
+
+
 @appointments_bp.route("/appointments", methods=["POST"])
 @jwt_required()
 def create_appointment():
@@ -92,7 +113,8 @@ def create_appointment():
     db.session.add(appointment)
     db.session.commit()
 
-    return jsonify(appointment.to_dict()), 201
+    # agora já devolve com nomes
+    return jsonify(_serialize_appointment(appointment)), 201
 
 
 @appointments_bp.route("/appointments", methods=["GET"])
@@ -109,7 +131,8 @@ def list_appointments():
         query = Appointment.query.filter_by(tutor_id=user_id)
 
     appointments = query.order_by(Appointment.scheduled_at.desc()).all()
-    return jsonify([a.to_dict() for a in appointments]), 200
+    # enriquece todas as consultas com nomes
+    return jsonify([_serialize_appointment(a) for a in appointments]), 200
 
 
 @appointments_bp.route("/appointments/<int:appointment_id>", methods=["GET"])
@@ -131,7 +154,7 @@ def get_appointment(appointment_id: int):
         if appointment.tutor_id != user_id:
             return jsonify({"message": "Acesso negado"}), 403
 
-    return jsonify(appointment.to_dict()), 200
+    return jsonify(_serialize_appointment(appointment)), 200
 
 
 @appointments_bp.route("/appointments/<int:appointment_id>/cancel", methods=["PATCH"])
@@ -156,4 +179,4 @@ def cancel_appointment(appointment_id: int):
     appointment.status = "CANCELLED"
     db.session.commit()
 
-    return jsonify(appointment.to_dict()), 200
+    return jsonify(_serialize_appointment(appointment)), 200

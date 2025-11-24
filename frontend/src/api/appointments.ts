@@ -17,6 +17,10 @@ export interface Appointment {
   status: AppointmentStatus;
   created_at?: string | null;
   updated_at?: string | null;
+  
+  pet_name?: string | null;
+  tutor_name?: string | null;
+  vet_name?: string | null;
 }
 
 export interface CreateAppointmentPayload {
