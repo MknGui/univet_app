@@ -18,6 +18,7 @@ class User(db.Model):
     crmv = db.Column(db.String(50), nullable=True)
     specialty = db.Column(db.String(120), nullable=True)   # Ex: Dermatologia
     phone = db.Column(db.String(30), nullable=True)        # Celular / WhatsApp
+    cpf = db.Column(db.String(14), nullable=True)
 
     # clínica principal do vet (pode ser nula para tutor)
     clinic_id = db.Column(db.Integer, db.ForeignKey("clinics.id"), nullable=True)

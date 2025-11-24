@@ -10,13 +10,16 @@ import { toast } from 'sonner';
 
 const ProfileEdit = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  
+  // uso como any pra poder acessar setUser/updateUser caso existam
+  const auth = useAuth() as any;
+  const user = auth?.user;
+
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '',
-    cpf: ''
+    phone: user?.phone || '',
+    // cpf ainda não vem do back, então deixo vazio mesmo
+    cpf: user?.cpf || '',
   });
 
   const handleSubmit = () => {
@@ -25,16 +28,41 @@ const ProfileEdit = () => {
       return;
     }
 
-    // Atualizar no localStorage (mock)
-    const currentUser = JSON.parse(localStorage.getItem('univet_user') || '{}');
+    // pega usuário atual do contexto ou do localStorage
+    const currentUser =
+      user || JSON.parse(localStorage.getItem('univet_user') || '{}');
+
     const updatedUser = {
       ...currentUser,
-      ...formData
+      ...formData,
     };
+
+    // Atualiza no localStorage
     localStorage.setItem('univet_user', JSON.stringify(updatedUser));
 
+    // Tenta atualizar o usuário em memória no AuthContext
+    const hasSetUser = typeof auth?.setUser === 'function';
+    const hasUpdateUser = typeof auth?.updateUser === 'function';
+
+    if (hasSetUser) {
+      auth.setUser(updatedUser);
+    } else if (hasUpdateUser) {
+      auth.updateUser(updatedUser);
+    }
+
     toast.success('Dados atualizados com sucesso!');
-    navigate('/tutor/profile');
+
+    // Se o contexto não tiver setter, força recarregar a tela
+    // pra AuthProvider pegar o user novo do localStorage
+    if (!hasSetUser && !hasUpdateUser) {
+      navigate('/tutor/profile');
+      // pequena pausa pra garantir que o navigate executou
+      setTimeout(() => {
+        window.location.reload();
+      }, 50);
+    } else {
+      navigate('/tutor/profile');
+    }
   };
 
   return (
@@ -49,7 +77,9 @@ const ProfileEdit = () => {
               id="name"
               placeholder="Seu nome completo"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="h-12"
             />
           </div>
@@ -61,7 +91,9 @@ const ProfileEdit = () => {
               type="email"
               placeholder="seu@email.com"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               className="h-12"
             />
           </div>
@@ -72,7 +104,9 @@ const ProfileEdit = () => {
               id="phone"
               placeholder="(00) 00000-0000"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               className="h-12"
             />
           </div>
@@ -83,7 +117,9 @@ const ProfileEdit = () => {
               id="cpf"
               placeholder="000.000.000-00"
               value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, cpf: e.target.value })
+              }
               className="h-12"
             />
           </div>
