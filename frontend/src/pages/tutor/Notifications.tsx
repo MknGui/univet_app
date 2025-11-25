@@ -1,60 +1,85 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/MobileLayout';
 import { MobileHeader } from '@/components/MobileHeader';
 import { Bell, Calendar, Heart, Info, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  type: 'appointment' | 'triage' | 'info' | 'success';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
+import { toast } from 'sonner';
+import {
+  listNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  Notification,
+} from '@/api/notifications';
 
 const Notifications = () => {
-  const notifications: Notification[] = [
-    {
-      id: '1',
-      type: 'appointment',
-      title: 'Consulta Confirmada',
-      message: 'Sua consulta com Thor foi confirmada para 05/11/2025 às 14:30',
-      time: '2 horas atrás',
-      read: false
-    },
-    {
-      id: '2',
-      type: 'success',
-      title: 'Vacina Aplicada',
-      message: 'A vacina V10 de Luna foi registrada com sucesso',
-      time: '1 dia atrás',
-      read: false
-    },
-    {
-      id: '3',
-      type: 'triage',
-      title: 'Triagem Concluída',
-      message: 'Triagem de Thor foi avaliada. Recomenda-se consulta veterinária',
-      time: '2 dias atrás',
-      read: true
-    },
-    {
-      id: '4',
-      type: 'info',
-      title: 'Dica de Saúde',
-      message: 'Não esqueça de manter a hidratação do seu pet em dias quentes',
-      time: '3 dias atrás',
-      read: true
-    },
-    {
-      id: '5',
-      type: 'appointment',
-      title: 'Lembrete de Consulta',
-      message: 'Você tem uma consulta agendada para amanhã às 10:00',
-      time: '1 semana atrás',
-      read: true
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      const data = await listNotifications();
+      setNotifications(data);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao carregar notificações');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // marca como lida de forma otimista
+    if (!notification.read) {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notification.id ? { ...n, read: true } : n,
+        ),
+      );
+      try {
+        await markNotificationAsRead(notification.id);
+      } catch (error: any) {
+        console.error(error);
+        toast.error(error.message || 'Erro ao marcar como lida');
+        // rollback se der erro
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, read: false } : n,
+          ),
+        );
+      }
+    }
+
+    // se tiver link, navega
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!notifications.some((n) => !n.read)) return;
+
+    setMarkingAll(true);
+    const prev = notifications;
+    setNotifications((old) => old.map((n) => ({ ...n, read: true })));
+
+    try {
+      await markAllNotificationsAsRead();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao marcar todas como lidas');
+      setNotifications(prev);
+    } finally {
+      setMarkingAll(false);
+    }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -71,32 +96,63 @@ const Notifications = () => {
     }
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <MobileLayout>
-      <MobileHeader title="Notificações" showBack />
+      <MobileHeader
+        title="Notificações"
+        showBack
+        action={
+          notifications.length > 0 && unreadCount > 0 ? (
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={markingAll}
+              className="text-xs font-medium text-primary disabled:opacity-50"
+            >
+              {markingAll ? '...' : 'Marcar todas como lidas'}
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="px-6 py-6 space-y-3">
-        {notifications.length > 0 ? (
+        {loading && notifications.length === 0 ? (
+          <div className="mobile-card text-center py-12">
+            <Bell className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="font-semibold text-lg mb-2">
+              Carregando notificações...
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Buscando atualizações para você
+            </p>
+          </div>
+        ) : notifications.length > 0 ? (
           notifications.map((notification) => {
             const { icon: Icon, color } = getNotificationIcon(notification.type);
             return (
-              <div
+              <button
                 key={notification.id}
+                onClick={() => handleNotificationClick(notification)}
                 className={cn(
-                  "mobile-card transition-all",
-                  !notification.read && "bg-primary/5 border-primary/20"
+                  'w-full text-left mobile-card transition-all hover:shadow-lg active:scale-95',
+                  !notification.read && 'bg-primary/5 border-primary/20',
                 )}
               >
                 <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                  <div
+                    className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}
+                  >
                     <Icon className="w-6 h-6" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className={cn(
-                        "font-semibold",
-                        !notification.read && "text-primary"
-                      )}>
+                      <h3
+                        className={cn(
+                          'font-semibold',
+                          !notification.read && 'text-primary',
+                        )}
+                      >
                         {notification.title}
                       </h3>
                       {!notification.read && (
@@ -111,13 +167,15 @@ const Notifications = () => {
                     </p>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })
         ) : (
           <div className="mobile-card text-center py-12">
             <Bell className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="font-semibold text-lg mb-2">Nenhuma notificação</h3>
+            <h3 className="font-semibold text-lg mb-2">
+              Nenhuma notificação
+            </h3>
             <p className="text-sm text-muted-foreground">
               Você está em dia com todas as suas notificações
             </p>

@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from extensions import db
 from models import Appointment, Pet, User
+from services.notifications_service import create_notification
 
 appointments_bp = Blueprint("appointments", __name__)
 
@@ -101,6 +102,10 @@ def create_appointment():
         # Se o vet criar a consulta, o tutor é o dono do pet
         tutor_id = pet.owner_id
 
+    tutor = User.query.get(tutor_id) if tutor_id else None
+    if not tutor:
+        return jsonify({"message": "Tutor não encontrado para este pet"}), 404
+
     appointment = Appointment(
         pet_id=pet.id,
         tutor_id=tutor_id,
@@ -113,7 +118,35 @@ def create_appointment():
     db.session.add(appointment)
     db.session.commit()
 
-    # agora já devolve com nomes
+    # ---------- NOTIFICAÇÕES ----------
+
+    # Caminho do vet no front: /vet/appointment/:id :contentReference[oaicite:3]{index=3}
+    create_notification(
+        user_id=vet.id,
+        type="appointment",
+        title="Nova consulta agendada",
+        message=(
+            f"Nova consulta para o pet {pet.name} com o tutor {tutor.name} "
+            f"em {scheduled_at.strftime('%d/%m/%Y %H:%M')}."
+        ),
+        link=f"/vet/appointment/{appointment.id}",
+    )
+
+    # Caminho do tutor no front: /tutor/appointment/:id :contentReference[oaicite:4]{index=4}
+    create_notification(
+        user_id=tutor.id,
+        type="appointment",
+        title="Consulta agendada",
+        message=(
+            f"Sua consulta para o pet {pet.name} com {vet.name} foi agendada "
+            f"para {scheduled_at.strftime('%d/%m/%Y %H:%M')}."
+        ),
+        link=f"/tutor/appointment/{appointment.id}",
+    )
+
+    # ----------------------------------
+
+    # já devolve com nomes, como antes
     return jsonify(_serialize_appointment(appointment)), 201
 
 

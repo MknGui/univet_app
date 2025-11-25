@@ -21,5 +21,5 @@ def register_blueprints(app):
     app.register_blueprint(triage_bp, url_prefix="/api")
     app.register_blueprint(contact_bp, url_prefix="/api")
     app.register_blueprint(education_bp, url_prefix="/api")
-    app.register_blueprint(notifications_bp, url_prefix="/api")
+    app.register_blueprint(notifications_bp)
 

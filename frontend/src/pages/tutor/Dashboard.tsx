@@ -15,6 +15,10 @@ import {
   type Appointment as ApiAppointment,
 } from "@/api/appointments";
 import { listPets, type Pet } from "@/api/pets";
+import {
+  listNotifications,
+  type Notification as ApiNotification,
+} from "@/api/notifications";
 
 // Mapeia status da API (PENDING/CONFIRMED/CANCELLED/COMPLETED)
 // para o status que o CardAgendamento espera (pending/confirmed/cancelled/completed)
@@ -71,6 +75,7 @@ const TutorDashboard = () => {
   const [appointments, setAppointments] = useState<UIAppointment[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const quickActions = [
     {
@@ -108,15 +113,21 @@ const TutorDashboard = () => {
       try {
         setLoading(true);
 
-        const [apiAppointments, petsData] = await Promise.all([
+        const [apiAppointments, petsData, notifications] = await Promise.all([
           listAppointments(),
           listPets(),
+          listNotifications(),
         ]);
 
         const mappedAppointments = apiAppointments.map(mapApiToUi);
-
         setAppointments(mappedAppointments);
         setPets(petsData);
+
+        // conta quantas não estão lidas
+        const unread = (notifications as ApiNotification[]).filter(
+          (n) => !n.read
+        ).length;
+        setUnreadCount(unread);
       } catch (error) {
         console.error("Erro ao carregar dados do dashboard", error);
       } finally {
@@ -148,7 +159,6 @@ const TutorDashboard = () => {
     .slice(0, 2);
 
   const totalConsultations = appointments.length;
-  const unreadCount = 0; // placeholder até ter backend de notificações
 
   return (
     <MobileLayout>
@@ -205,7 +215,7 @@ const TutorDashboard = () => {
         </div>
       </div>
 
-      {/* Upcoming Appointments */}
+      {/* Próximas Consultas */}
       <div className="px-6 py-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Próximas Consultas</h2>

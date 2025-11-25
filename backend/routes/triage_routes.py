@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from extensions import db
 from models import Pet, Triage
+from services.notifications_service import create_notification
 
 triage_bp = Blueprint("triage", __name__)
 
@@ -155,5 +156,24 @@ def create_triage():
 
     db.session.add(triage)
     db.session.commit()
+
+    # Notificação para o tutor com o resultado da triagem
+    risk_level = analysis.get("risk_level")
+    if risk_level == "urgent":
+        risk_label = "Urgente"
+    elif risk_level == "monitor":
+        risk_label = "Atenção"
+    else:
+        risk_label = "Leve"
+
+    title = f"Triagem de {pet.name}: {risk_label}"
+    message = analysis.get("ai_summary") or "Sua triagem foi concluída."
+
+    create_notification(
+        user_id=pet.owner_id,
+        type="triage",
+        title=title,
+        message=message,
+    )
 
     return jsonify(triage.to_dict()), 201

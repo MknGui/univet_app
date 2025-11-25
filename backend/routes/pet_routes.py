@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Pet, PetBreed, PetVaccine
+from services.notifications_service import create_notification
 
 pets_bp = Blueprint("pets", __name__)
 
@@ -260,5 +261,20 @@ def create_pet_vaccine(pet_id: int):
 
     db.session.add(vaccine)
     db.session.commit()
+
+    # Notificação para o tutor: vacina registrada
+    try:
+        date_label = date_value.strftime("%d/%m/%Y")
+    except Exception:
+        date_label = date_str
+
+    message = f"A vacina {name} de {pet.name} foi registrada em {date_label}."
+    create_notification(
+        user_id=pet.owner_id,
+        type="success",
+        title="Vacina registrada",
+        message=message,
+        link=f"/tutor/animal/{pet.id}",
+    )
 
     return jsonify(vaccine.to_dict()), 201
