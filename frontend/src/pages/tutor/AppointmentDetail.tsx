@@ -1,3 +1,4 @@
+// src/pages/tutor/AppointmentDetail.tsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/MobileLayout";
@@ -35,6 +36,29 @@ const statusClasses: Record<AppointmentStatus, string> = {
   COMPLETED: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
 };
 
+// Componente helper para exibir Nome + #id no padrão desejado
+function NameWithId({
+  label,
+  name,
+  id,
+}: {
+  label: string;
+  name?: string | null;
+  id: number;
+}) {
+  return (
+    <div>
+      <p className="font-medium">{label}</p>
+      <p className="text-xs">
+        <span className="font-semibold text-foreground">
+          {name || `ID ${id}`}
+        </span>{" "}
+        <span className="text-muted-foreground">#{id}</span>
+      </p>
+    </div>
+  );
+}
+
 const AppointmentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,7 +86,7 @@ const AppointmentDetail = () => {
       }
     };
 
-    load();
+    void load();
   }, [id, navigate]);
 
   const handleCancel = async () => {
@@ -109,7 +133,7 @@ const AppointmentDetail = () => {
         <div className="px-6 py-6">
           <div className="mobile-card text-center py-12">
             <p className="text-sm text-muted-foreground">
-              Carregando detalhes da consulta...
+              Carregando detalhes da consulta.
             </p>
           </div>
         </div>
@@ -135,9 +159,23 @@ const AppointmentDetail = () => {
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
             <Stethoscope className="w-8 h-8 text-primary" />
           </div>
+
           <h2 className="text-xl font-bold mb-1">
             Consulta {appointment.id}
           </h2>
+
+          {/* Subtítulo com paciente */}
+          {appointment.pet_name && (
+            <p className="text-sm mb-1">
+              Paciente{" "}
+              <span className="font-semibold text-foreground">
+                {appointment.pet_name}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                #{appointment.pet_id}
+              </span>
+            </p>
+          )}
 
           {scheduled && (
             <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
@@ -165,7 +203,7 @@ const AppointmentDetail = () => {
         </div>
 
         {/* Info básica */}
-        <div className="mobile-card space-y-3">
+        <div className="mobile-card space-y-4">
           <div className="flex items-start gap-3">
             <FileText className="w-5 h-5 text-primary mt-1" />
             <div className="flex-1">
@@ -176,46 +214,48 @@ const AppointmentDetail = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-            <div>
-              <p className="font-medium">
-                Paciente
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {appointment.pet_name} - ID {appointment.pet_id}
-              </p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 text-sm mt-2">
+            <NameWithId
+              label="Paciente"
+              name={appointment.pet_name}
+              id={appointment.pet_id}
+            />
 
-            <div>
-              <p className="font-medium">
-                Tutor
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {appointment.tutor_name} - ID {appointment.tutor_id}
-              </p>
-            </div>
+            <NameWithId
+              label="Tutor"
+              name={appointment.tutor_name}
+              id={appointment.tutor_id}
+            />
 
-            <div>
-              <p className="font-medium">
-                Veterinário
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {appointment.vet_name} - ID {appointment.vet_id}
-              </p>
-            </div>
+            <NameWithId
+              label="Veterinário"
+              name={appointment.vet_name}
+              id={appointment.vet_id}
+            />
 
             {createdAt && (
               <div>
                 <p className="font-medium">Criada em</p>
-                <p className="text-xs text-muted-foreground">
-                  {createdAt}
-                </p>
+                <p className="text-xs text-muted-foreground">{createdAt}</p>
               </div>
             )}
+
           </div>
-
-
         </div>
+
+        {/* Aviso para consultas pendentes */}
+        {appointment.status === "PENDING" && (
+          <div className="mobile-card bg-amber-50 border border-amber-100 text-xs text-amber-900 space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Importante</span>
+            </div>
+            <p>
+              Caso não possa comparecer, cancele a consulta com antecedência
+              para liberar o horário do veterinário.
+            </p>
+          </div>
+        )}
 
         {/* Ações */}
         <div className="space-y-3">

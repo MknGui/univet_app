@@ -217,3 +217,25 @@ class Triage(db.Model):
             "recommendations": self.recommendations,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+    
+class ContactMessage(db.Model):
+    __tablename__ = "contact_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    subject = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "subject": self.subject,
+            "message": self.message,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+

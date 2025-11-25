@@ -45,7 +45,8 @@ const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
     id: String(appt.id),
 
     animalId: String(appt.pet_id),
-    animalName: `Pet #${appt.pet_id}`,
+    // nome em preto; #id em cinza fica por conta do CardAgendamento
+    animalName: (appt as any).pet_name ?? `Pet ${appt.pet_id}`,
 
     tutorId: String(appt.tutor_id),
     tutorName: `Tutor #${appt.tutor_id}`,
@@ -94,9 +95,19 @@ const Appointments = () => {
     aptDate.setHours(0, 0, 0, 0);
 
     if (filter === "upcoming") {
-      return aptDate >= today && apt.status !== "completed";
+      // Próximas: data >= hoje, e não completed nem cancelled
+      return (
+        aptDate >= today &&
+        apt.status !== "completed" &&
+        apt.status !== "cancelled"
+      );
     } else {
-      return aptDate < today || apt.status === "completed";
+      // Anteriores: data < hoje ou completed ou cancelled
+      return (
+        aptDate < today ||
+        apt.status === "completed" ||
+        apt.status === "cancelled"
+      );
     }
   });
 

@@ -1,30 +1,49 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MobileLayout } from '@/components/MobileLayout';
-import { MobileHeader } from '@/components/MobileHeader';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
-import { Mail, Phone, MessageSquare } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MobileLayout } from "@/components/MobileLayout";
+import { MobileHeader } from "@/components/MobileHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Mail, Phone, MessageSquare } from "lucide-react";
+import { apiRequest } from "@/api/client";
 
 const ProfileContact = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    subject: '',
-    message: ''
+    subject: "",
+    message: "",
   });
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.subject || !formData.message) {
-      toast.error('Preencha todos os campos');
+      toast.error("Preencha todos os campos");
       return;
     }
 
-    // Simular envio de mensagem
-    toast.success('Mensagem enviada com sucesso! Entraremos em contato em breve.');
-    navigate('/tutor/profile');
+    try {
+      setSending(true);
+
+      await apiRequest("/contact-messages", {
+        method: "POST",
+        body: JSON.stringify(formData),
+      });
+
+      toast.success(
+        "Mensagem enviada com sucesso! Entraremos em contato em breve."
+      );
+      navigate("/tutor/profile");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error?.message || "Erro ao enviar mensagem. Tente novamente."
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -35,7 +54,7 @@ const ProfileContact = () => {
         {/* Contact Info */}
         <div className="mobile-card space-y-4">
           <h3 className="font-semibold text-lg mb-4">Entre em Contato</h3>
-          
+
           <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
               <Mail className="w-5 h-5 text-primary" />
@@ -70,7 +89,9 @@ const ProfileContact = () => {
               id="subject"
               placeholder="Sobre o que você quer falar?"
               value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, subject: e.target.value }))
+              }
               className="h-12"
             />
           </div>
@@ -81,16 +102,19 @@ const ProfileContact = () => {
               id="message"
               placeholder="Digite sua mensagem..."
               value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, message: e.target.value }))
+              }
               className="min-h-32"
             />
           </div>
 
           <Button
             onClick={handleSubmit}
+            disabled={sending}
             className="w-full h-12 text-base font-semibold gradient-primary mt-2"
           >
-            Enviar Mensagem
+            {sending ? "Enviando..." : "Enviar Mensagem"}
           </Button>
         </div>
       </div>

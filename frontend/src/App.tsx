@@ -27,7 +27,7 @@ import Notifications from "./pages/tutor/Notifications";
 import Profile from "./pages/tutor/Profile";
 import ProfileEdit from "./pages/tutor/ProfileEdit";
 import ProfileContact from "./pages/tutor/ProfileContact";
-import ProfileAddresses from "./pages/tutor/ProfileAddresses";
+
 
 // Veterinarian
 import VetDashboard from "./pages/vet/Dashboard";
@@ -224,14 +224,6 @@ const App = () => (
               }
             />
 
-            <Route
-              path="/tutor/profile/addresses"
-              element={
-                <ProtectedRoute>
-                  <ProfileAddresses />
-                </ProtectedRoute>
-              }
-            />
 
             {/* ---------------------- */}
             {/* ROTAS DO VETERINÁRIO */}

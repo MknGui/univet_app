@@ -4,6 +4,7 @@ from .appointment_routes import appointments_bp
 from .vet_routes import vets_bp
 from .clinic_routes import clinics_bp
 from .triage_routes import triage_bp
+from .contact_routes import contact_bp
 
 
 def register_blueprints(app):
@@ -16,3 +17,5 @@ def register_blueprints(app):
     app.register_blueprint(vets_bp)
     app.register_blueprint(clinics_bp)
     app.register_blueprint(triage_bp, url_prefix="/api")
+    app.register_blueprint(contact_bp, url_prefix="/api")
+
