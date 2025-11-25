@@ -24,7 +24,14 @@ export const CardAnimal = ({ animal, onClick }: CardAnimalProps) => {
         </div>
         
         <div className="flex-1 text-left min-w-0">
-          <h3 className="font-semibold text-lg mb-1 truncate">{animal.name}</h3>
+          {/* Nome em preto + #id em cinza, igual CardAgendamento */}
+          <div className="flex items-center gap-1 mb-1 min-w-0">
+            <span className="font-semibold text-lg truncate">{animal.name}</span>
+            <span className="text-xs text-muted-foreground flex-shrink-0">
+              #{animal.id}
+            </span>
+          </div>
+
           <p className="text-sm text-muted-foreground truncate">{animal.breed}</p>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span>{animal.age}</span>

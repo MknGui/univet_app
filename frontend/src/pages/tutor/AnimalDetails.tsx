@@ -201,7 +201,13 @@ const AnimalDetails = () => {
           <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <SpeciesIcon className="w-12 h-12 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">{animal.name}</h2>
+
+          {/* Nome em preto + #id em cinza */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <h2 className="text-2xl font-bold">{animal.name}</h2>
+            <span className="text-sm text-muted-foreground">#{animal.id}</span>
+          </div>
+
           <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
             {animal.species === 'dog'
               ? 'Cachorro'
@@ -365,7 +371,7 @@ const AnimalDetails = () => {
           )}
         </div>
 
-        {/* Triagens recentes (ainda mock) */}
+        {/* Triagens recentes */}
         {recentTriages.length > 0 && (
           <div className="mobile-card">
             <h3 className="font-semibold mb-4">Triagens Recentes</h3>

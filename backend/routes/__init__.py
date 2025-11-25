@@ -6,6 +6,7 @@ from .clinic_routes import clinics_bp
 from .triage_routes import triage_bp
 from .contact_routes import contact_bp
 from .education_routes import education_bp
+from .notifications_routes import notifications_bp
 
 
 def register_blueprints(app):
@@ -20,4 +21,5 @@ def register_blueprints(app):
     app.register_blueprint(triage_bp, url_prefix="/api")
     app.register_blueprint(contact_bp, url_prefix="/api")
     app.register_blueprint(education_bp, url_prefix="/api")
+    app.register_blueprint(notifications_bp, url_prefix="/api")
 

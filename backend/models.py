@@ -275,3 +275,36 @@ class EducationContent(db.Model):
         if detail:
             data["content"] = self.content
         return data
+
+class Notification(db.Model):
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    # 'appointment', 'triage', 'info', 'success'
+    type = db.Column(db.String(20), nullable=False)
+
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.String(500), nullable=False)
+
+    # texto pronto para exibir, exemplo "2 horas atrás" ou "05/11/2025 14:30"
+    time = db.Column(db.String(50), nullable=False)
+
+    read = db.Column(db.Boolean, default=False, nullable=False)
+
+    # link opcional para navegar no app, ex: "/tutor/appointment/123"
+    link = db.Column(db.String(255))
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    # se quiser, pode colocar um relationship com User:
+    # user = db.relationship("User", backref="notifications")
