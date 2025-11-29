@@ -1,8 +1,34 @@
 import { Calendar, Clock, User } from "lucide-react";
-import { Appointment } from "@/data/mockData";
+
+// Status em minúsculo, usado pelo app
+export type AppointmentCardStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "completed";
+
+// View-model que o card usa para renderizar
+export interface AppointmentCard {
+  id: string;
+
+  animalId: string;
+  animalName: string;
+
+  tutorId: string;
+  tutorName: string;
+
+  vetId?: string;
+  vetName?: string;
+
+  date: string; // parseável em new Date()
+  time: string; // "HH:MM"
+
+  status: AppointmentCardStatus;
+  type: string; // "Consulta", "Retorno", etc
+}
 
 interface CardAgendamentoProps {
-  appointment: Appointment;
+  appointment: AppointmentCard;
   onClick: () => void;
   showTutor?: boolean;
 }
@@ -12,7 +38,7 @@ export const CardAgendamento = ({
   onClick,
   showTutor = false,
 }: CardAgendamentoProps) => {
-  const getStatusConfig = (status: string) => {
+  const getStatusConfig = (status: AppointmentCardStatus | string) => {
     switch (status) {
       case "confirmed":
         return {

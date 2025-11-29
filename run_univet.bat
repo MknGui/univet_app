@@ -21,4 +21,3 @@ echo ================================
 echo  Tudo iniciado! Pode usar o UNIVET
 echo ================================
 
-pause

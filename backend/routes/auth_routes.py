@@ -158,6 +158,10 @@ def update_me():
     # cpf (se o modelo tiver esse campo)
     cpf = (data.get("cpf") or "").strip() or None
 
+    # campos específicos de vet (podem vir ou não)
+    crmv = data.get("crmv")
+    specialty = data.get("specialty")
+
     if not name or not email:
         return jsonify({"message": "Nome e e-mail são obrigatórios"}), 400
 
@@ -176,6 +180,21 @@ def update_me():
     # usa getattr/setattr pra não quebrar se o campo ainda não existir na tabela
     if hasattr(user, "cpf"):
         user.cpf = cpf
+
+    # se for veterinário, permite atualizar CRMV e especialidade
+    if user.role == "veterinarian":
+        if crmv is not None:
+            crmv = crmv.strip().upper()
+            # permite limpar o CRMV se vier vazio, mas valida se tiver conteúdo
+            if crmv and not re.match(CRMV_REGEX, crmv):
+                return jsonify(
+                    {"message": "CRMV inválido. Use o formato: CRMV-UF 12345"}
+                ), 400
+            user.crmv = crmv or None
+
+        if specialty is not None:
+            specialty = specialty.strip() or None
+            user.specialty = specialty
 
     db.session.commit()
 

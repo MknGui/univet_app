@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { apiRequest } from "@/api/client";
 
 const VetProfileEdit = () => {
   const navigate = useNavigate();
@@ -33,25 +34,46 @@ const VetProfileEdit = () => {
     phone: (user as any).phone || "",
   });
 
-  const handleSubmit = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
     if (!formData.name) {
       toast.error("Preencha o nome");
       return;
     }
 
-    // se quiser forçar CRMV/especialidade sempre preenchidos:
-    // if (!formData.crmv) { toast.error("Informe o CRMV"); return; }
-    // if (!formData.specialty) { toast.error("Informe a especialidade"); return; }
+    try {
+      setSaving(true);
 
-    updateUser({
-      name: formData.name,
-      crmv: formData.crmv,
-      specialty: formData.specialty,
-      phone: formData.phone,
-    });
+      // payload para /api/auth/me
+      const payload: any = {
+        name: formData.name,
+        phone: formData.phone || null,
+      };
 
-    toast.success("Perfil atualizado com sucesso!");
-    navigate("/vet/profile");
+      // se for vet, manda CRMV e especialidade (back ignora para tutor)
+      payload.crmv = formData.crmv || "";
+      payload.specialty = formData.specialty || "";
+
+      const updatedUser = await apiRequest<any>("/auth/me", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      // atualiza contexto com o usuário vindo do back
+      updateUser(updatedUser);
+
+      toast.success("Perfil atualizado com sucesso!");
+      navigate("/vet/profile");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error?.message ||
+          "Não foi possível atualizar o perfil. Tente novamente."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -73,7 +95,7 @@ const VetProfileEdit = () => {
             />
           </div>
 
-          {/* E-mail (somente leitura, ainda não temos update no back) */}
+          {/* E-mail (somente leitura) */}
           <div className="space-y-2">
             <Label htmlFor="email">E-mail (login)</Label>
             <Input
@@ -129,9 +151,10 @@ const VetProfileEdit = () => {
 
           <Button
             onClick={handleSubmit}
+            disabled={saving}
             className="w-full h-12 text-base font-semibold gradient-primary mt-6"
           >
-            Salvar Alterações
+            {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </div>
       </div>

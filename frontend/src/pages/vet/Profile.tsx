@@ -1,18 +1,53 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MobileHeader } from "@/components/MobileHeader";
 import { Button } from "@/components/ui/button";
 import { User, Award, LogOut, ChevronRight, Building2 } from "lucide-react";
+import {
+  listAppointments,
+  type Appointment as ApiAppointment,
+} from "@/api/appointments";
 
 const VetProfile = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [totalConsultations, setTotalConsultations] = useState(0);
+  const [completedConsultations, setCompletedConsultations] = useState(0);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        setLoadingStats(true);
+
+        // Para o vet logado – se o listAppointments aceitar um parâmetro de role,
+        // pode usar listAppointments("vet"). Se não, deixa só listAppointments().
+        const data: ApiAppointment[] = await listAppointments("vet" as any);
+
+        const total = data.length;
+        const completed = data.filter(
+          (appt) => appt.status === "COMPLETED"
+        ).length;
+
+        setTotalConsultations(total);
+        setCompletedConsultations(completed);
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas do perfil do vet", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    void loadStats();
+  }, []);
 
   return (
     <MobileLayout>
@@ -41,14 +76,18 @@ const VetProfile = () => {
           </span>
         </div>
 
-        {/* Stats (placeholder por enquanto) */}
+        {/* Stats – agora vindos da API */}
         <div className="grid grid-cols-2 gap-3">
           <div className="mobile-card text-center">
-            <p className="text-2xl font-bold text-primary">12</p>
+            <p className="text-2xl font-bold text-primary">
+              {loadingStats ? "..." : totalConsultations}
+            </p>
             <p className="text-sm text-muted-foreground">Consultas</p>
           </div>
           <div className="mobile-card text-center">
-            <p className="text-2xl font-bold text-primary">45</p>
+            <p className="text-2xl font-bold text-primary">
+              {loadingStats ? "..." : completedConsultations}
+            </p>
             <p className="text-sm text-muted-foreground">Registros</p>
           </div>
         </div>

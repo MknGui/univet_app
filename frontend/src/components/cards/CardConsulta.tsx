@@ -29,6 +29,8 @@ export const CardConsulta = ({ consultation, onClick, showTutor = false }: CardC
         return 'Agendada';
       case 'cancelled':
         return 'Cancelada';
+      case 'pending':
+        return 'Agendada';
       default:
         return status;
     }

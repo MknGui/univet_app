@@ -4,12 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MobileLayout } from "@/components/MobileLayout";
 import { Activity, Calendar, Heart, BookOpen, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CardAgendamento } from "@/components/cards/CardAgendamento";
+import {
+  CardAgendamento,
+  type AppointmentCard,
+  type AppointmentCardStatus,
+} from "@/components/cards/CardAgendamento";
 
-// Tipo que o CardAgendamento espera (mesmo do Appointments.tsx)
-import type { Appointment as UIAppointment } from "@/data/mockData";
-
-// Tipo da API real
 import {
   listAppointments,
   type Appointment as ApiAppointment,
@@ -20,11 +20,10 @@ import {
   type Notification as ApiNotification,
 } from "@/api/notifications";
 
-// Mapeia status da API (PENDING/CONFIRMED/CANCELLED/COMPLETED)
-// para o status que o CardAgendamento espera (pending/confirmed/cancelled/completed)
+// Mapeia status da API (PENDING/CONFIRMED/...) -> status em minúsculo do card
 const mapStatus = (
   apiStatus: ApiAppointment["status"]
-): UIAppointment["status"] => {
+): AppointmentCardStatus => {
   switch (apiStatus) {
     case "PENDING":
       return "pending";
@@ -39,8 +38,8 @@ const mapStatus = (
   }
 };
 
-// Converte o Appointment da API para o Appointment usado no CardAgendamento
-const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
+// Converte o Appointment da API para o AppointmentCard usado no CardAgendamento
+const mapApiToCard = (appt: ApiAppointment): AppointmentCard => {
   const dt = new Date(appt.scheduled_at);
 
   const date = dt.toISOString(); // CardAgendamento usa new Date(appointment.date)
@@ -51,13 +50,13 @@ const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
 
     animalId: String(appt.pet_id),
     // nome em preto no card, #id em cinza – aqui vai só o nome
-    animalName: (appt as any).pet_name ?? `Pet ${appt.pet_id}`,
+    animalName: appt.pet_name ?? `Pet ${appt.pet_id}`,
 
     tutorId: String(appt.tutor_id),
-    tutorName: `Tutor #${appt.tutor_id}`,
+    tutorName: appt.tutor_name ?? `Tutor #${appt.tutor_id}`,
 
-    vetId: String(appt.vet_id),
-    vetName: `Vet #${appt.vet_id}`,
+    vetId: appt.vet_id ? String(appt.vet_id) : undefined,
+    vetName: appt.vet_name ?? (appt.vet_id ? `Vet #${appt.vet_id}` : undefined),
 
     date,
     time,
@@ -72,7 +71,7 @@ const TutorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [appointments, setAppointments] = useState<UIAppointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentCard[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -114,12 +113,12 @@ const TutorDashboard = () => {
         setLoading(true);
 
         const [apiAppointments, petsData, notifications] = await Promise.all([
-          listAppointments(),
+          listAppointments(), // tutor por padrão
           listPets(),
           listNotifications(),
         ]);
 
-        const mappedAppointments = apiAppointments.map(mapApiToUi);
+        const mappedAppointments = apiAppointments.map(mapApiToCard);
         setAppointments(mappedAppointments);
         setPets(petsData);
 
@@ -140,7 +139,7 @@ const TutorDashboard = () => {
 
   // Calcula próximas consultas:
   // - data >= hoje
-  // - status diferente de completed e cancelled (não conta cancelado como próxima)
+  // - status diferente de completed e cancelled
   // - mostra no máximo 2
   const today = new Date();
   today.setHours(0, 0, 0, 0);
