@@ -59,7 +59,7 @@ const mapApiToCard = (appt: ApiAppointment): AppointmentCard => {
 
 const VetAppointments = () => {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<"today" | "upcoming" | "past">("today");
+  const [filter, setFilter] = useState<"today" | "upcoming" | "pending">("today");
   const [appointments, setAppointments] = useState<AppointmentCard[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,17 +87,23 @@ const VetAppointments = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const filteredAppointments = appointments.filter((apt) => {
+  // Base: só agendamentos em aberto (não cancelados e não concluídos)
+  const openAppointments = appointments.filter(
+    (apt) => apt.status !== "completed" && apt.status !== "cancelled"
+  );
+
+  const filteredAppointments = openAppointments.filter((apt) => {
     const aptDate = new Date(apt.date);
     aptDate.setHours(0, 0, 0, 0);
 
     if (filter === "today") {
       return aptDate.getTime() === today.getTime();
     } else if (filter === "upcoming") {
-      return aptDate >= tomorrow && apt.status !== "completed";
+      // só futuro
+      return aptDate >= tomorrow;
     } else {
-      // past
-      return aptDate < today || apt.status === "completed";
+      // "pending": já passou da data, mas ainda está em aberto
+      return aptDate < today;
     }
   });
 
@@ -123,11 +129,11 @@ const VetAppointments = () => {
             Próximas
           </Button>
           <Button
-            variant={filter === "past" ? "default" : "outline"}
-            onClick={() => setFilter("past")}
+            variant={filter === "pending" ? "default" : "outline"}
+            onClick={() => setFilter("pending")}
             className="flex-1"
           >
-            Anteriores
+            Pendentes
           </Button>
         </div>
 
@@ -138,7 +144,7 @@ const VetAppointments = () => {
               Carregando agenda...
             </h3>
             <p className="text-sm text-muted-foreground">
-              Buscando seus agendamentos
+              Buscando seus agendamentos em aberto
             </p>
           </div>
         ) : filteredAppointments.length > 0 ? (
@@ -156,17 +162,18 @@ const VetAppointments = () => {
           <div className="mobile-card text-center py-12">
             <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="font-semibold text-lg mb-2">
-              {filter === "today" && "Nenhum agendamento para hoje"}
-              {filter === "upcoming" && "Nenhum agendamento futuro"}
-              {filter === "past" && "Nenhum agendamento anterior"}
+              {filter === "today" && "Nenhum agendamento em aberto hoje"}
+              {filter === "upcoming" && "Nenhum agendamento futuro em aberto"}
+              {filter === "pending" &&
+                "Nenhum agendamento pendente de confirmação"}
             </h3>
             <p className="text-sm text-muted-foreground">
               {filter === "today" &&
-                "Você não possui consultas agendadas para hoje"}
+                "Você não possui consultas em aberto para hoje"}
               {filter === "upcoming" &&
-                "Não há consultas futuras agendadas"}
-              {filter === "past" &&
-                "Você ainda não possui consultas anteriores"}
+                "No momento não há consultas futuras em aberto"}
+              {filter === "pending" &&
+                "Nenhuma consulta passada ficou sem confirmação de realização"}
             </p>
           </div>
         )}

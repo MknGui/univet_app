@@ -120,6 +120,7 @@ class PetVaccine(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
+
 class Appointment(db.Model):
     __tablename__ = "appointments"
 
@@ -156,6 +157,7 @@ class Appointment(db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
+
 class Clinic(db.Model):
     __tablename__ = "clinics"
 
@@ -189,6 +191,7 @@ class Clinic(db.Model):
             "phone": self.phone,
         }
 
+
 class Triage(db.Model):
     __tablename__ = "triages"
 
@@ -217,7 +220,8 @@ class Triage(db.Model):
             "recommendations": self.recommendations,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
-    
+
+
 class ContactMessage(db.Model):
     __tablename__ = "contact_messages"
 
@@ -238,6 +242,7 @@ class ContactMessage(db.Model):
             "message": self.message,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
 
 class EducationContent(db.Model):
     __tablename__ = "education_contents"
@@ -276,6 +281,7 @@ class EducationContent(db.Model):
             data["content"] = self.content
         return data
 
+
 class Notification(db.Model):
     __tablename__ = "notifications"
 
@@ -306,5 +312,63 @@ class Notification(db.Model):
         nullable=False,
     )
 
-    # se quiser, pode colocar um relationship com User:
-    # user = db.relationship("User", backref="notifications")
+
+class Consultation(db.Model):
+    __tablename__ = "consultations"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    pet_id = db.Column(db.Integer, db.ForeignKey("pets.id"), nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    vet_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    appointment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("appointments.id"),
+        nullable=True,
+    )
+
+    date = db.Column(db.Date, nullable=False)
+    diagnosis = db.Column(db.Text, nullable=False)
+    treatment = db.Column(db.Text, nullable=False)
+    observations = db.Column(db.Text, nullable=True)
+    next_visit = db.Column(db.Date, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    appointment = db.relationship("Appointment", backref="consultations")
+
+    # NOVO: relacionamentos para puxar nomes
+    pet = db.relationship("Pet", lazy="joined")
+    tutor = db.relationship(
+        "User",
+        foreign_keys=[tutor_id],
+        lazy="joined",
+    )
+    vet = db.relationship(
+        "User",
+        foreign_keys=[vet_id],
+        lazy="joined",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "pet_id": self.pet_id,
+            "tutor_id": self.tutor_id,
+            "vet_id": self.vet_id,
+            "appointment_id": self.appointment_id,
+            "date": self.date.isoformat() if self.date else None,
+            "diagnosis": self.diagnosis,
+            "treatment": self.treatment,
+            "observations": self.observations,
+            "next_visit": self.next_visit.isoformat() if self.next_visit else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

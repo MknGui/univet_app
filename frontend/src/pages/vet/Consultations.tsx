@@ -1,4 +1,3 @@
-// src/pages/vet/Consultations.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/MobileLayout";
@@ -6,76 +5,59 @@ import { MobileHeader } from "@/components/MobileHeader";
 import { Button } from "@/components/ui/button";
 import { Plus, Stethoscope } from "lucide-react";
 import { CardConsulta } from "@/components/cards/CardConsulta";
-
-// Mesmo tipo usado pelos cards de agendamento
-import type { Appointment as UIAppointment } from "@/data/mockData";
-
-// Tipo/serviço da API real
 import {
-  listAppointments,
-  type Appointment as ApiAppointment,
-} from "@/api/appointments";
+  listConsultations,
+  type Consultation as ApiConsultation,
+} from "@/api/consultations";
 
-// Mapeia status da API (PENDING/CONFIRMED/CANCELLED/COMPLETED)
-// para o status usado nos cards (pending/confirmed/cancelled/completed)
-const mapStatus = (
-  apiStatus: ApiAppointment["status"]
-): UIAppointment["status"] => {
-  switch (apiStatus) {
-    case "PENDING":
-      return "pending";
-    case "CONFIRMED":
-      return "confirmed";
-    case "CANCELLED":
-      return "cancelled";
-    case "COMPLETED":
-      return "completed";
-    default:
-      return "pending";
-  }
-};
+type Filter = "all" | "completed" | "scheduled";
 
-// Converte o Appointment da API para o formato esperado pelo CardConsulta
-const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
-  const dt = new Date(appt.scheduled_at);
+// Agora o status não depende mais da data,
+// e sim de ter (ou não) diagnóstico preenchido.
+const mapApiToUi = (c: ApiConsultation): any => {
+  const dt = new Date(c.date);
 
-  const date = dt.toISOString(); // cards usam new Date(appointment.date)
-  const time = dt.toTimeString().slice(0, 5); // HH:MM
+  const hasDiagnosis =
+    typeof c.diagnosis === "string" && c.diagnosis.trim().length > 0;
+
+  // reusamos os mesmos valores que o CardConsulta já conhece
+  // "scheduled" = pendente de diagnóstico
+  // "completed" = com diagnóstico registrado
+  const status: "scheduled" | "completed" = hasDiagnosis
+    ? "completed"
+    : "scheduled";
 
   return {
-    id: String(appt.id),
+    id: String(c.id),
 
-    animalId: String(appt.pet_id),
-    animalName: (appt as any).pet_name ?? `Pet ${appt.pet_id}`,
+    date: dt.toISOString(),
+    time: dt.toTimeString().slice(0, 5),
 
-    tutorId: String(appt.tutor_id),
-    tutorName: (appt as any).tutor_name ?? `Tutor #${appt.tutor_id}`,
+    diagnosis: c.diagnosis,
+    treatment: c.treatment,
 
-    vetId: String(appt.vet_id),
-    vetName: (appt as any).vet_name ?? `Vet #${appt.vet_id}`,
+    petId: String(c.pet_id),
+    petName: (c as any).pet_name ?? `Pet #${c.pet_id}`,
+    tutorId: String(c.tutor_id),
+    tutorName: (c as any).tutor_name ?? `Tutor #${c.tutor_id}`,
+    vetId: String(c.vet_id),
+    vetName: (c as any).vet_name ?? `Vet #${c.vet_id}`,
 
-    date,
-    time,
-    status: mapStatus(appt.status),
-
-    // usa o motivo como tipo, com fallback "Consulta"
-    type: appt.reason || "Consulta",
+    status,
   };
 };
 
 const Consultations = () => {
   const navigate = useNavigate();
-  const [filter, setFilter] =
-    useState<"all" | "completed" | "scheduled">("all");
-  const [consultations, setConsultations] = useState<UIAppointment[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [consultations, setConsultations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        // /appointments já retorna só as consultas do vet logado
-        const data = await listAppointments();
+        const data = await listConsultations();
         const mapped = data.map(mapApiToUi);
         setConsultations(mapped);
       } catch (error) {
@@ -90,23 +72,13 @@ const Consultations = () => {
 
   const filteredConsultations = consultations.filter((cons) => {
     if (filter === "all") return true;
-
-    if (filter === "completed") {
-      return cons.status === "completed";
-    }
-
-    if (filter === "scheduled") {
-      // considera como "agendada" tudo que ainda não foi concluído nem cancelado
-      return cons.status !== "completed" && cons.status !== "cancelled";
-    }
-
-    return true;
+    return cons.status === filter;
   });
 
   return (
     <MobileLayout>
       <MobileHeader
-        title="Minhas Consultas"
+        title="Consultas realizadas"
         action={
           <Button
             size="icon"
@@ -133,30 +105,26 @@ const Consultations = () => {
             onClick={() => setFilter("scheduled")}
             className="flex-1"
           >
-            Agendadas
+            Pendentes de diagnóstico
           </Button>
           <Button
             variant={filter === "completed" ? "default" : "outline"}
             onClick={() => setFilter("completed")}
             className="flex-1"
           >
-            Concluídas
+            Com diagnóstico
           </Button>
         </div>
 
         {loading ? (
           <div className="mobile-card text-center py-12">
-            <Stethoscope className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="font-semibold text-lg mb-2">
-              Carregando consultas...
-            </h3>
             <p className="text-sm text-muted-foreground">
-              Buscando suas consultas no sistema
+              Carregando consultas...
             </p>
           </div>
         ) : filteredConsultations.length > 0 ? (
           <div className="space-y-3">
-            {filteredConsultations.map((consultation) => (
+            {filteredConsultations.map((consultation: any) => (
               <CardConsulta
                 key={consultation.id}
                 consultation={consultation}
@@ -171,16 +139,17 @@ const Consultations = () => {
           <div className="mobile-card text-center py-12">
             <Stethoscope className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="font-semibold text-lg mb-2">
-              Nenhuma consulta registrada
+              Nenhuma consulta encontrada
             </h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Registre sua primeira consulta
+              Não há consultas realizadas ou pendentes de diagnóstico.
             </p>
             <Button
               onClick={() => navigate("/vet/consultation/new")}
               className="gradient-primary"
             >
-              Nova Consulta
+              <Plus className="w-4 h-4 mr-2" />
+              Registrar nova consulta
             </Button>
           </div>
         )}

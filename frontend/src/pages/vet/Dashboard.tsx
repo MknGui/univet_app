@@ -1,50 +1,121 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { MobileLayout } from '@/components/MobileLayout';
-import { Stethoscope, Calendar, ClipboardList, Bell, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { CardAgendamento } from '@/components/cards/CardAgendamento';
-import { mockAppointments, mockConsultations } from '@/data/mockData';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { MobileLayout } from "@/components/MobileLayout";
+import {
+  Stethoscope,
+  Calendar,
+  ClipboardList,
+  Bell,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  CardAgendamento,
+  type AppointmentCard,
+  type AppointmentCardStatus,
+} from "@/components/cards/CardAgendamento";
+
+import {
+  listAppointments,
+  type Appointment as ApiAppointment,
+} from "@/api/appointments";
+import {
+  listConsultations,
+  type Consultation,
+} from "@/api/consultations";
+import { listNotifications } from "@/api/notifications";
+
+const mapStatus = (
+  apiStatus: ApiAppointment["status"]
+): AppointmentCardStatus => {
+  switch (apiStatus) {
+    case "PENDING":
+      return "pending";
+    case "CONFIRMED":
+      return "confirmed";
+    case "CANCELLED":
+      return "cancelled";
+    case "COMPLETED":
+      return "completed";
+    default:
+      return "pending";
+  }
+};
+
+const mapApiToCard = (appt: ApiAppointment): AppointmentCard => {
+  const dt = new Date(appt.scheduled_at);
+
+  const date = dt.toISOString();
+  const time = dt.toTimeString().slice(0, 5);
+
+  return {
+    id: String(appt.id),
+
+    animalId: String(appt.pet_id),
+    animalName: (appt as any).pet_name ?? `Pet ${appt.pet_id}`,
+
+    tutorId: String(appt.tutor_id),
+    tutorName: (appt as any).tutor_name ?? `Tutor #${appt.tutor_id}`,
+
+    vetId: appt.vet_id ? String(appt.vet_id) : undefined,
+    vetName: (appt as any).vet_name ?? (appt.vet_id ? `Vet #${appt.vet_id}` : undefined),
+
+    date,
+    time,
+    status: mapStatus(appt.status),
+    type: appt.reason || "Consulta",
+  };
+};
 
 const VetDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const quickActions = [
-    {
-      icon: Stethoscope,
-      label: 'Registrar Consulta',
-      description: 'Nova consulta',
-      path: '/vet/consultation/new',
-      color: 'bg-blue-500/10 text-blue-600'
-    },
-    {
-      icon: ClipboardList,
-      label: 'Minhas Consultas',
-      description: 'Histórico',
-      path: '/vet/consultations',
-      color: 'bg-green-500/10 text-green-600'
-    },
-    {
-      icon: Calendar,
-      label: 'Agenda',
-      description: 'Ver horários',
-      path: '/vet/appointments',
-      color: 'bg-purple-500/10 text-purple-600'
-    },
-  ];
+  const [appointments, setAppointments] = useState<AppointmentCard[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  // Filter vet's appointments for today
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        // Agenda do vet
+        const appts = await listAppointments("vet");
+        const mapped = appts.map(mapApiToCard);
+        setAppointments(mapped);
+
+        // Consultas clínicas registradas
+        const consults = await listConsultations();
+        setConsultations(consults);
+
+        // Notificações não lidas (para mostrar bolinha no ícone)
+        const notifs = await listNotifications();
+        setUnreadNotifications(notifs.filter((n) => !n.read).length);
+      } catch (error) {
+        console.error("Erro ao carregar dashboard do vet", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, []);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
-  const todayAppointments = mockAppointments.filter(apt => {
+
+  const todayAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.date);
     aptDate.setHours(0, 0, 0, 0);
-    return apt.vetId === 'vet1' && aptDate.getTime() === today.getTime();
+    return aptDate.getTime() === today.getTime();
   });
 
-  const vetConsultations = mockConsultations.filter(c => c.vetId === 'vet1');
+  const totalConsultations = consultations.length;
+  const completedAppointments = appointments.filter(
+    (a) => a.status === "completed"
+  ).length;
 
   return (
     <MobileLayout>
@@ -54,18 +125,25 @@ const VetDashboard = () => {
           <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-sm text-muted-foreground">Bem-vindo(a),</p>
-              <h1 className="text-2xl font-bold text-foreground">{user?.name}</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                {user?.name}
+              </h1>
               {user?.crmv && (
-                <p className="text-sm text-primary font-medium mt-1">{user.crmv}</p>
+                <p className="text-sm text-primary font-medium mt-1">
+                  {user.crmv}
+                </p>
               )}
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full"
-              onClick={() => navigate('/vet/notifications')}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full relative"
+              onClick={() => navigate("/vet/notifications")}
             >
               <Bell className="h-5 w-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full" />
+              )}
             </Button>
           </div>
         </div>
@@ -73,7 +151,29 @@ const VetDashboard = () => {
         {/* Quick Actions */}
         <div className="px-6 pb-6">
           <div className="grid grid-cols-1 gap-3">
-            {quickActions.map((action) => {
+            {[
+              {
+                icon: Stethoscope,
+                label: "Registrar Consulta",
+                description: "Nova consulta",
+                path: "/vet/consultation/new",
+                color: "bg-blue-500/10 text-blue-600",
+              },
+              {
+                icon: ClipboardList,
+                label: "Minhas Consultas",
+                description: "Histórico",
+                path: "/vet/consultations",
+                color: "bg-green-500/10 text-green-600",
+              },
+              {
+                icon: Calendar,
+                label: "Agenda",
+                description: "Ver horários",
+                path: "/vet/appointments",
+                color: "bg-purple-500/10 text-purple-600",
+              },
+            ].map((action) => {
               const Icon = action.icon;
               return (
                 <button
@@ -82,12 +182,16 @@ const VetDashboard = () => {
                   className="mobile-card text-left hover:shadow-lg transition-all active:scale-95"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 ${action.color} rounded-2xl flex items-center justify-center`}>
+                    <div
+                      className={`w-14 h-14 ${action.color} rounded-2xl flex items-center justify-center`}
+                    >
                       <Icon className="w-7 h-7" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold mb-1">{action.label}</h3>
-                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {action.description}
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -104,20 +208,29 @@ const VetDashboard = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/vet/appointments')}
+            onClick={() => navigate("/vet/appointments")}
             className="text-primary"
           >
             Ver todas
           </Button>
         </div>
 
-        {todayAppointments.length > 0 ? (
+        {loading ? (
+          <div className="mobile-card text-center py-8">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-muted-foreground">
+              Carregando agenda de hoje...
+            </p>
+          </div>
+        ) : todayAppointments.length > 0 ? (
           <div className="space-y-3">
             {todayAppointments.map((appointment) => (
               <CardAgendamento
                 key={appointment.id}
                 appointment={appointment}
-                onClick={() => navigate(`/vet/appointment/${appointment.id}`)}
+                onClick={() =>
+                  navigate(`/vet/appointment/${appointment.id}`)
+                }
                 showTutor={true}
               />
             ))}
@@ -137,17 +250,19 @@ const VetDashboard = () => {
         <div className="grid grid-cols-3 gap-3">
           <div className="mobile-card text-center">
             <Stethoscope className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{vetConsultations.length}</p>
+            <p className="text-2xl font-bold">{totalConsultations}</p>
             <p className="text-xs text-muted-foreground">Consultas</p>
           </div>
           <div className="mobile-card text-center">
             <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{todayAppointments.length}</p>
+            <p className="text-2xl font-bold">
+              {todayAppointments.length}
+            </p>
             <p className="text-xs text-muted-foreground">Hoje</p>
           </div>
           <div className="mobile-card text-center">
             <ClipboardList className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{vetConsultations.filter(c => c.status === 'completed').length}</p>
+            <p className="text-2xl font-bold">{completedAppointments}</p>
             <p className="text-xs text-muted-foreground">Concluídas</p>
           </div>
         </div>
