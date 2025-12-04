@@ -1,4 +1,4 @@
-import { Calendar, Stethoscope, User } from "lucide-react";
+import { Calendar, Stethoscope, User, Clock } from "lucide-react";
 import { Consultation } from "@/data/mockData";
 
 interface CardConsultaProps {
@@ -144,6 +144,7 @@ export const CardConsulta = ({
             {timeText && (
               <>
                 <span>•</span>
+                <Clock className="w-3 h-3" />
                 <span>{timeText}</span>
               </>
             )}
@@ -155,7 +156,7 @@ export const CardConsulta = ({
               <User className="w-3 h-3" />
               <span className="truncate">
                 Tutor:{" "}
-                <span className="font-medium text-foreground">
+                <span className="text-muted-foreground">
                   {tutorName}
                 </span>
                 {tutorId && (

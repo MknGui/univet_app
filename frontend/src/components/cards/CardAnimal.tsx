@@ -8,7 +8,7 @@ interface CardAnimalProps {
 
 export const CardAnimal = ({ animal, onClick }: CardAnimalProps) => {
   const getSpeciesIcon = (species: string) => {
-    return species === 'cat' ? Cat : Dog;
+    return species === ' ' ? Cat : Dog;
   };
 
   const SpeciesIcon = getSpeciesIcon(animal.species);

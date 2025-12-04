@@ -213,3 +213,60 @@ def cancel_appointment(appointment_id: int):
     db.session.commit()
 
     return jsonify(_serialize_appointment(appointment)), 200
+
+@appointments_bp.route("/appointments/<int:appointment_id>/confirm", methods=["PATCH"])
+@jwt_required()
+def confirm_appointment(appointment_id: int):
+    user_id, role = _get_current_user()
+
+    if not user_id:
+        return jsonify({"message": "Usuário não identificado"}), 401
+
+    appointment = Appointment.query.get_or_404(appointment_id)
+
+    # Só o veterinário responsável pode confirmar
+    if role != "veterinarian" or appointment.vet_id != user_id:
+        return (
+            jsonify({"message": "Você não tem permissão para confirmar este agendamento"}),
+            403,
+        )
+
+    if appointment.status in ("CANCELLED", "COMPLETED"):
+        return (
+            jsonify({"message": "Este agendamento já foi cancelado ou concluído"}),
+            400,
+        )
+
+    # Se já estiver confirmado, só devolve o registro
+    if appointment.status == "CONFIRMED":
+        return jsonify(_serialize_appointment(appointment)), 200
+
+    appointment.status = "CONFIRMED"
+    db.session.commit()
+
+    # Opcional: notificar o tutor que a consulta foi confirmada
+    try:
+        pet = Pet.query.get(appointment.pet_id)
+        tutor = User.query.get(appointment.tutor_id)
+        vet = User.query.get(appointment.vet_id)
+
+        if tutor:
+            from services.notifications_service import create_notification
+
+            create_notification(
+                user_id=tutor.id,
+                type="appointment",
+                title="Consulta confirmada",
+                message=(
+                    f"Sua consulta para o pet "
+                    f"{pet.name if pet else ''} com "
+                    f"{vet.name if vet else 'o veterinário'} "
+                    f"em {appointment.scheduled_at.strftime('%d/%m/%Y %H:%M')} foi confirmada."
+                ),
+                link=f"/tutor/appointment/{appointment.id}",
+            )
+    except Exception as e:
+        # Não quebra o fluxo se a notificação falhar
+        print(f"Erro ao criar notificação de confirmação: {e}")
+
+    return jsonify(_serialize_appointment(appointment)), 200

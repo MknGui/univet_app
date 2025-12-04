@@ -58,7 +58,9 @@ const mapApiToCard = (appt: ApiAppointment): AppointmentCard => {
     tutorName: (appt as any).tutor_name ?? `Tutor #${appt.tutor_id}`,
 
     vetId: appt.vet_id ? String(appt.vet_id) : undefined,
-    vetName: (appt as any).vet_name ?? (appt.vet_id ? `Vet #${appt.vet_id}` : undefined),
+    vetName:
+      (appt as any).vet_name ??
+      (appt.vet_id ? `Vet #${appt.vet_id}` : undefined),
 
     date,
     time,
@@ -90,7 +92,7 @@ const VetDashboard = () => {
         const consults = await listConsultations();
         setConsultations(consults);
 
-        // Notificações não lidas (para mostrar bolinha no ícone)
+        // Notificações não lidas
         const notifs = await listNotifications();
         setUnreadNotifications(notifs.filter((n) => !n.read).length);
       } catch (error) {
@@ -103,18 +105,34 @@ const VetDashboard = () => {
     void load();
   }, []);
 
+  // Referência para o dia de hoje (zerando hora)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Agenda de hoje (apenas pelo dia, como já estava)
   const todayAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.date);
     aptDate.setHours(0, 0, 0, 0);
     return aptDate.getTime() === today.getTime();
   });
 
-  const totalConsultations = consultations.length;
-  const completedAppointments = appointments.filter(
-    (a) => a.status === "completed"
+  // Consultas pendentes:
+  // próximas consultas que ainda não foram realizadas nem canceladas,
+  // incluindo hoje (PENDING ou CONFIRMED a partir de hoje).
+  const pendingAppointments = appointments.filter((apt) => {
+    const aptDate = new Date(apt.date);
+    aptDate.setHours(0, 0, 0, 0);
+
+    const isTodayOrFuture = aptDate.getTime() >= today.getTime();
+    const isPendingStatus =
+      apt.status === "pending" || apt.status === "confirmed";
+
+    return isTodayOrFuture && isPendingStatus;
+  });
+
+  // Total de consultas com diagnóstico
+  const consultationsWithDiagnosis = consultations.filter(
+    (c) => c.diagnosis && c.diagnosis.trim() !== ""
   ).length;
 
   return (
@@ -248,11 +266,18 @@ const VetDashboard = () => {
       {/* Quick Stats */}
       <div className="px-6 pb-6">
         <div className="grid grid-cols-3 gap-3">
+          {/* Consultas pendentes: próximas não realizadas nem canceladas, incluindo hoje */}
           <div className="mobile-card text-center">
             <Stethoscope className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{totalConsultations}</p>
-            <p className="text-xs text-muted-foreground">Consultas</p>
+            <p className="text-2xl font-bold">
+              {pendingAppointments.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Consultas pendentes
+            </p>
           </div>
+
+          {/* Hoje: apenas hoje, como já estava */}
           <div className="mobile-card text-center">
             <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold">
@@ -260,9 +285,13 @@ const VetDashboard = () => {
             </p>
             <p className="text-xs text-muted-foreground">Hoje</p>
           </div>
+
+          {/* Concluídas: total de consultas com diagnóstico */}
           <div className="mobile-card text-center">
             <ClipboardList className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{completedAppointments}</p>
+            <p className="text-2xl font-bold">
+              {consultationsWithDiagnosis}
+            </p>
             <p className="text-xs text-muted-foreground">Concluídas</p>
           </div>
         </div>

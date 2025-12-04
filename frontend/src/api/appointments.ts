@@ -56,3 +56,9 @@ export async function cancelAppointment(id: number): Promise<Appointment> {
     method: "PATCH",
   });
 }
+
+export async function confirmAppointment(id: number): Promise<Appointment> {
+  return apiRequest<Appointment>(`/appointments/${id}/confirm`, {
+    method: "PATCH",
+  });
+}

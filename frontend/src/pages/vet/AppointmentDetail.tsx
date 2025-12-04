@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import {
   getAppointment,
   cancelAppointment,
+  confirmAppointment,
   type Appointment,
 } from "@/api/appointments";
 import { getPet, type Pet } from "@/api/pets";
@@ -21,6 +22,7 @@ const VetAppointmentDetail = () => {
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -74,9 +76,29 @@ const VetAppointmentDetail = () => {
     }
   };
 
+  const handleConfirm = async () => {
+    if (!appointment) return;
+
+    const confirmed = window.confirm(
+      "Deseja confirmar este agendamento com o tutor?"
+    );
+    if (!confirmed) return;
+
+    try {
+      setConfirming(true);
+      const updated = await confirmAppointment(appointment.id);
+      setAppointment(updated);
+      toast.success("Consulta confirmada com sucesso");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "Erro ao confirmar agendamento");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const handleRegisterConsultation = () => {
     if (!appointment) return;
-    // Fluxo para registrar consulta a partir deste agendamento
     // ConsultaNew está em /vet/consultation/new
     // Enviamos o appointmentId na query para no futuro pré-preencher
     navigate(`/vet/consultation/new?appointmentId=${appointment.id}`);
@@ -109,9 +131,9 @@ const VetAppointmentDetail = () => {
     if (!appointment) return null;
 
     const status = appointment.status;
-
     let label = "";
-    let classes = "px-2 py-1 rounded-full text-xs font-medium ";
+    let classes =
+      "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ";
 
     switch (status) {
       case "PENDING":
@@ -149,6 +171,14 @@ const VetAppointmentDetail = () => {
       ? pet.breeds.join(", ")
       : "Raça não informada";
 
+  const petSpeciesLabel =
+    pet?.species === "cat"
+      ? "Gato"
+      : pet?.species === "dog"
+      ? "Cachorro"
+      : pet?.species || "Espécie não informada";
+
+
   const appointmentReason =
     appointment?.reason && appointment.reason.trim().length > 0
       ? appointment.reason
@@ -159,9 +189,11 @@ const VetAppointmentDetail = () => {
     appointment.status !== "CANCELLED" &&
     appointment.status !== "COMPLETED";
 
+  // Agora só pode registrar consulta se estiver CONFIRMED
   const canRegisterConsultation =
-    appointment &&
-    (appointment.status === "PENDING" || appointment.status === "CONFIRMED");
+    appointment && appointment.status === "CONFIRMED";
+
+  const canConfirm = appointment && appointment.status === "PENDING";
 
   return (
     <MobileLayout>
@@ -228,8 +260,9 @@ const VetAppointmentDetail = () => {
                   <div>
                     <p className="text-sm font-medium">{pet.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {pet.species ?? "Espécie não informada"}
+                      {petSpeciesLabel}
                     </p>
+
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -281,6 +314,16 @@ const VetAppointmentDetail = () => {
 
             {/* Ações */}
             <div className="space-y-2">
+              {canConfirm && (
+                <Button
+                  className="w-full h-11 gradient-primary"
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                >
+                  {confirming ? "Confirmando..." : "Confirmar consulta"}
+                </Button>
+              )}
+
               {canRegisterConsultation && (
                 <Button
                   className="w-full h-11 gradient-primary"

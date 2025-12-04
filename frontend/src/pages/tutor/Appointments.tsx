@@ -36,8 +36,6 @@ const mapStatus = (
 const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
   const dt = new Date(appt.scheduled_at);
 
-  // CardAgendamento faz: new Date(appointment.date)
-  // qualquer string ISO válida funciona
   const date = dt.toISOString();
   const time = dt.toTimeString().slice(0, 5); // HH:MM
 
@@ -45,20 +43,20 @@ const mapApiToUi = (appt: ApiAppointment): UIAppointment => {
     id: String(appt.id),
 
     animalId: String(appt.pet_id),
-    // nome em preto; #id em cinza fica por conta do CardAgendamento
-    animalName: (appt as any).pet_name ?? `Pet ${appt.pet_id}`,
+    animalName: appt.pet_name ?? `Pet ${appt.pet_id}`,
 
     tutorId: String(appt.tutor_id),
-    tutorName: `Tutor #${appt.tutor_id}`,
+    // usa nome real do tutor se vier do back
+    tutorName: appt.tutor_name ?? `Tutor #${appt.tutor_id}`,
 
     vetId: String(appt.vet_id),
-    vetName: `Vet #${appt.vet_id}`,
+    // AQUI é o ajuste: usa o nome real do vet
+    vetName: appt.vet_name ?? undefined,
 
     date,
     time,
     status: mapStatus(appt.status),
 
-    // aqui estava o erro: era appt.notes, mas o backend manda "reason"
     type: appt.reason || "Consulta",
   };
 };

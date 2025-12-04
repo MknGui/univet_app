@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MobileHeader } from "@/components/MobileHeader";
-import { Calendar, Stethoscope, FileText, Clock } from "lucide-react";
+import {
+  Calendar,
+  Stethoscope,
+  FileText,
+  Clock,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   getConsultation,
@@ -46,6 +52,19 @@ const ConsultationDetail = () => {
     );
   }
 
+  // Nome bonito do pet e tutor, com fallback
+  const petName =
+    (consultation as any).pet_name ??
+    `pet #${consultation.pet_id}`;
+
+  const tutorName = (consultation as any).tutor_name as
+    | string
+    | undefined;
+
+  const formattedDate = consultation.date
+    ? new Date(consultation.date).toLocaleDateString("pt-BR")
+    : "";
+
   return (
     <MobileLayout showBottomNav={false}>
       <MobileHeader title="Detalhes da Consulta" showBack />
@@ -56,54 +75,65 @@ const ConsultationDetail = () => {
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Stethoscope className="w-8 h-8 text-primary" />
           </div>
+
+          {/* Título com nome do pet */}
           <h2 className="text-xl font-bold mb-2">
-            {/* se você tiver pet_name na API de consulta, pode usar aqui.
-               Por enquanto deixo "Consulta para o pet #{pet_id}" */}
-            {`Consulta para pet #${consultation.pet_id}`}
+            Consulta para {petName}
           </h2>
+
+          {/* Data da consulta */}
           {consultation.date && (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
-              <span>
-                {new Date(consultation.date).toLocaleDateString("pt-BR")}
-              </span>
+              <span>{formattedDate}</span>
+            </div>
+          )}
+
+          {/* Tutor, se vier da API */}
+          {tutorName && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-2">
+              <User className="w-4 h-4" />
+              <span>Tutor: {tutorName}</span>
             </div>
           )}
         </div>
 
-        {/* Diagnosis */}
+        {/* Diagnóstico */}
         <div className="mobile-card space-y-3">
           <div className="flex items-center gap-2 text-primary mb-2">
             <Stethoscope className="w-5 h-5" />
             <h3 className="font-semibold">Diagnóstico</h3>
           </div>
           <p className="text-sm leading-relaxed">
-            {consultation.diagnosis}
+            {consultation.diagnosis || "Nenhum diagnóstico informado."}
           </p>
         </div>
 
-        {/* Treatment */}
+        {/* Conduta / Tratamento */}
         <div className="mobile-card space-y-3">
           <div className="flex items-center gap-2 text-primary mb-2">
             <FileText className="w-5 h-5" />
             <h3 className="font-semibold">Conduta/Tratamento</h3>
           </div>
           <p className="text-sm leading-relaxed">
-            {consultation.treatment}
+            {consultation.treatment || "Nenhuma conduta registrada."}
           </p>
         </div>
 
-        {/* Observations */}
+        {/* Observações */}
         {consultation.observations && (
           <div className="mobile-card space-y-3">
-            <h3 className="font-semibold text-sm">Observações</h3>
+            <div className="flex items-center gap-2 text-primary mb-2">
+              <FileText className="w-5 h-5" />
+              <h3 className="font-semibold">Observações</h3>
+            </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {consultation.observations}
             </p>
           </div>
         )}
 
-        {/* Next Visit */}
+        {/* Próxima visita */}
         {consultation.next_visit && (
           <div className="mobile-card">
             <div className="flex items-center gap-3">
@@ -112,7 +142,7 @@ const ConsultationDetail = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">
-                  Próxima Visita
+                  Próxima visita recomendada
                 </p>
                 <p className="font-semibold">
                   {new Date(
