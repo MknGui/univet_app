@@ -279,7 +279,7 @@ const Consultations = () => {
             onClick={() => setFilter("pending_diagnosis")}
             className="flex-1"
           >
-            Pendentes de diagnóstico
+            Pendentes
           </Button>
 
           <Button
@@ -287,7 +287,7 @@ const Consultations = () => {
             onClick={() => setFilter("completed")}
             className="flex-1"
           >
-            Com diagnóstico
+            Diagnósticado
           </Button>
         </div>
 

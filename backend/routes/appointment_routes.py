@@ -85,6 +85,28 @@ def create_appointment():
             }
         ), 400
 
+    # valida conflito de horário para o vet
+    conflict = (
+        Appointment.query
+        .filter_by(vet_id=vet_id)
+        .filter(Appointment.scheduled_at == scheduled_at)
+        .filter(Appointment.status.in_(["PENDING", "CONFIRMED"]))
+        .first()
+    )
+
+    if conflict:
+        return (
+            jsonify(
+                {
+                    "message": (
+                        "Já existe uma consulta marcada para este veterinário "
+                        "neste horário."
+                    )
+                }
+            ),
+            400,
+        )
+
     pet = Pet.query.get(pet_id)
     if not pet:
         return jsonify({"message": "Pet não encontrado"}), 404
@@ -118,9 +140,7 @@ def create_appointment():
     db.session.add(appointment)
     db.session.commit()
 
-    # ---------- NOTIFICAÇÕES ----------
-
-    # Caminho do vet no front: /vet/appointment/:id :contentReference[oaicite:3]{index=3}
+    # notificações continuam igual...
     create_notification(
         user_id=vet.id,
         type="appointment",
@@ -132,7 +152,6 @@ def create_appointment():
         link=f"/vet/appointment/{appointment.id}",
     )
 
-    # Caminho do tutor no front: /tutor/appointment/:id :contentReference[oaicite:4]{index=4}
     create_notification(
         user_id=tutor.id,
         type="appointment",
@@ -144,10 +163,8 @@ def create_appointment():
         link=f"/tutor/appointment/{appointment.id}",
     )
 
-    # ----------------------------------
-
-    # já devolve com nomes, como antes
     return jsonify(_serialize_appointment(appointment)), 201
+
 
 
 @appointments_bp.route("/appointments", methods=["GET"])

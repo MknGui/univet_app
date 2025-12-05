@@ -16,7 +16,6 @@ export interface Consultation {
   vet_name?: string | null;
 }
 
-
 export interface CreateConsultationPayload {
   pet_id: number;
   date: string; // "YYYY-MM-DD"
@@ -37,6 +36,16 @@ export async function createConsultation(
 
 export async function listConsultations(): Promise<Consultation[]> {
   return apiRequest<Consultation[]>("/consultations", {
+    method: "GET",
+  });
+}
+
+// novo helper para buscar histórico por pet
+export async function listConsultationsByPet(
+  petId: number | string
+): Promise<Consultation[]> {
+  const query = `?pet_id=${encodeURIComponent(String(petId))}`;
+  return apiRequest<Consultation[]>(`/consultations${query}`, {
     method: "GET",
   });
 }

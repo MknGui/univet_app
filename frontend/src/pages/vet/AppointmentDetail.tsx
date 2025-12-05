@@ -13,6 +13,10 @@ import {
   type Appointment,
 } from "@/api/appointments";
 import { getPet, type Pet } from "@/api/pets";
+import {
+  listConsultationsByPet,
+  type Consultation,
+} from "@/api/consultations";
 
 const VetAppointmentDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +27,9 @@ const VetAppointmentDetail = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +47,17 @@ const VetAppointmentDetail = () => {
           setPet(petData);
         } catch (err) {
           console.error("Erro ao carregar pet", err);
+        }
+
+        // carrega histórico de consultas do pet
+        try {
+          setLoadingConsultations(true);
+          const history = await listConsultationsByPet(appt.pet_id);
+          setConsultations(history);
+        } catch (err) {
+          console.error("Erro ao carregar histórico de consultas", err);
+        } finally {
+          setLoadingConsultations(false);
         }
       } catch (error: any) {
         console.error(error);
@@ -102,6 +120,17 @@ const VetAppointmentDetail = () => {
     // ConsultaNew está em /vet/consultation/new
     // Enviamos o appointmentId na query para no futuro pré-preencher
     navigate(`/vet/consultation/new?appointmentId=${appointment.id}`);
+  };
+
+  const formatConsultationDate = (value?: string | null) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   const formatDateTime = (iso?: string | null) => {
@@ -177,7 +206,6 @@ const VetAppointmentDetail = () => {
       : pet?.species === "dog"
       ? "Cachorro"
       : pet?.species || "Espécie não informada";
-
 
   const appointmentReason =
     appointment?.reason && appointment.reason.trim().length > 0
@@ -258,7 +286,7 @@ const VetAppointmentDetail = () => {
                 {appointment.tutor_name ?? `Tutor #${appointment.tutor_id}`}
               </p>
             </div>
-            
+
             {/* Bloco do Pet */}
             <div className="mobile-card space-y-2">
               <div className="flex items-center gap-3 mb-1">
@@ -273,7 +301,6 @@ const VetAppointmentDetail = () => {
                     <p className="text-xs text-muted-foreground">
                       {petSpeciesLabel}
                     </p>
-
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -312,7 +339,57 @@ const VetAppointmentDetail = () => {
               )}
             </div>
 
-            
+            {/* Histórico de consultas do pet */}
+            <div className="mobile-card space-y-2">
+              <div className="flex items-center gap-3 mb-1">
+                <Calendar className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-semibold">Histórico de consultas</h3>
+              </div>
+
+              {loadingConsultations ? (
+                <p className="text-sm text-muted-foreground">
+                  Carregando histórico...
+                </p>
+              ) : consultations.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma consulta registrada para esse pet ainda.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {consultations.slice(0, 5).map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/vet/consultation/${c.id}`)}
+                        className="w-full text-left rounded-xl px-3 py-2 bg-background hover:shadow-lg transition-all active:scale-95"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">
+                            {formatConsultationDate(c.date)}
+                          </span>
+                          {c.vet_name && (
+                            <span className="text-xs text-muted-foreground">
+                              {c.vet_name}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {c.diagnosis || "Sem diagnóstico registrado"}
+                        </p>
+
+                        {c.next_visit && (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Próximo retorno: {formatConsultationDate(c.next_visit)}
+                          </p>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
 
             {/* Ações */}
             <div className="space-y-2">
