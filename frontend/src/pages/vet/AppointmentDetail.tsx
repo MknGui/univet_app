@@ -248,6 +248,17 @@ const VetAppointmentDetail = () => {
               </div>
             </div>
 
+            {/* Bloco do tutor */}
+            <div className="mobile-card space-y-2">
+              <div className="flex items-center gap-3 mb-1">
+                <User className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-semibold">Tutor</h3>
+              </div>
+              <p className="text-sm font-medium">
+                {appointment.tutor_name ?? `Tutor #${appointment.tutor_id}`}
+              </p>
+            </div>
+            
             {/* Bloco do Pet */}
             <div className="mobile-card space-y-2">
               <div className="flex items-center gap-3 mb-1">
@@ -301,16 +312,7 @@ const VetAppointmentDetail = () => {
               )}
             </div>
 
-            {/* Bloco do tutor */}
-            <div className="mobile-card space-y-2">
-              <div className="flex items-center gap-3 mb-1">
-                <User className="w-5 h-5 text-primary" />
-                <h3 className="text-base font-semibold">Tutor</h3>
-              </div>
-              <p className="text-sm font-medium">
-                {appointment.tutor_name ?? `Tutor #${appointment.tutor_id}`}
-              </p>
-            </div>
+            
 
             {/* Ações */}
             <div className="space-y-2">
