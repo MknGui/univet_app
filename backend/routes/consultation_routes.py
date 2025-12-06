@@ -6,6 +6,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Consultation, Pet, User, Appointment
 from services.notifications_service import create_notification
+from services.ai_summary_service import generate_consultations_summary
+
 
 consultations_bp = Blueprint("consultations", __name__)
 
@@ -240,3 +242,58 @@ def get_consultation(consultation_id: int):
 
     return jsonify(data), 200
 
+@consultations_bp.route("/consultations/summary", methods=["GET"])
+@jwt_required()
+def consultations_summary():
+    user_id, role = _get_current_user()
+    if not user_id:
+        return jsonify({"message": "Usuário não identificado"}), 401
+
+    pet_id_raw = request.args.get("pet_id")
+    if not pet_id_raw:
+        return jsonify({"message": "pet_id é obrigatório"}), 400
+
+    try:
+        pet_id = int(pet_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({"message": "pet_id deve ser um inteiro"}), 400
+
+    pet = Pet.query.get(pet_id)
+    if not pet:
+        return jsonify({"message": "Pet não encontrado"}), 404
+
+    # Regras de acesso
+    if role != "veterinarian" and pet.owner_id != user_id:
+        return jsonify({"message": "Você não é tutor deste pet"}), 403
+
+    query = Consultation.query.filter_by(pet_id=pet.id)
+
+    if role == "veterinarian":
+        query = query.filter_by(vet_id=user_id)
+    else:
+        query = query.filter_by(tutor_id=user_id)
+
+    consultations = (
+        query.order_by(Consultation.date.desc())
+        .limit(10)
+        .all()
+    )
+
+    if not consultations:
+        return jsonify(
+            {
+                "pet_id": pet.id,
+                "summary": "Não há consultas registradas para esse pet ainda.",
+                "consultation_count": 0,
+            }
+        ), 200
+
+    summary_text = generate_consultations_summary(pet, consultations)
+
+    return jsonify(
+        {
+            "pet_id": pet.id,
+            "summary": summary_text,
+            "consultation_count": len(consultations),
+        }
+    ), 200

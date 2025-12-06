@@ -1,1 +1,3 @@
 from .notifications_service import create_notification
+from .ai_summary_service import generate_consultations_summary
+from .local_llm_client import generate_summary_from_prompt

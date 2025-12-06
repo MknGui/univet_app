@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
-    allowedHosts: ["mirkkus.duckdns.org"], // 👈 permite acesso externo
+    allowedHosts: ["mirkkus.duckdns.org", "victoria-expense-threshold-axis.trycloudflare.com"], // 👈 permite acesso externo
     cors: true,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

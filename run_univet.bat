@@ -2,6 +2,21 @@
 title UNIVET - Inicializador Full Stack
 
 echo ================================
+echo     Inicializando LLaMA (Ollama)
+echo ================================
+
+REM --- iniciar Ollama server ---
+start cmd /k "ollama serve"
+
+REM --- aguarda alguns segundos para o servidor subir ---
+timeout /t 5 >nul
+
+REM --- garante que o modelo esteja disponível ---
+echo Baixando/verificando modelo llama3...
+ollama pull llama3
+
+echo.
+echo ================================
 echo      Inicializando Backend
 echo ================================
 
@@ -20,4 +35,3 @@ echo.
 echo ================================
 echo  Tudo iniciado! Pode usar o UNIVET
 echo ================================
-

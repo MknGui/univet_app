@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MobileHeader } from "@/components/MobileHeader";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, PawPrint, User, AlertCircle } from "lucide-react";
+import { Calendar, Clock, PawPrint, User, AlertCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -17,6 +17,10 @@ import {
   listConsultationsByPet,
   type Consultation,
 } from "@/api/consultations";
+import {
+  getConsultationSummary,
+  type ConsultationSummaryResponse,
+} from "@/api/ai";
 
 const VetAppointmentDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,17 +35,23 @@ const VetAppointmentDetail = () => {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loadingConsultations, setLoadingConsultations] = useState(false);
 
+  // estados do resumo IA
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // carrega agendamento, pet e histórico
   useEffect(() => {
     const load = async () => {
       if (!id) return;
 
       try {
         setLoading(true);
-        // id vem como string da URL, a API espera number
+
         const appt = await getAppointment(Number(id));
         setAppointment(appt);
 
-        // carrega o pet associado
+        // pet
         try {
           const petData = await getPet(appt.pet_id);
           setPet(petData);
@@ -49,7 +59,7 @@ const VetAppointmentDetail = () => {
           console.error("Erro ao carregar pet", err);
         }
 
-        // carrega histórico de consultas do pet
+        // histórico de consultas
         try {
           setLoadingConsultations(true);
           const history = await listConsultationsByPet(appt.pet_id);
@@ -72,6 +82,51 @@ const VetAppointmentDetail = () => {
 
     void load();
   }, [id, navigate]);
+
+  // carrega o resumo IA separado, depois que a tela já está carregada
+  useEffect(() => {
+    if (!appointment) {
+      setSummary(null);
+      return;
+    }
+
+    if (consultations.length === 0) {
+      setSummary(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSummary = async () => {
+      try {
+        setLoadingSummary(true);
+        setSummaryError(null);
+
+        const aiData: ConsultationSummaryResponse =
+          await getConsultationSummary(appointment.pet_id);
+
+        if (!cancelled) {
+          setSummary(aiData.summary);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar resumo IA", err);
+        if (!cancelled) {
+          setSummaryError("Não foi possível gerar o resumo automático.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSummary(false);
+        }
+      }
+    };
+
+    loadSummary();
+
+    // se o componente desmontar, evita setState depois
+    return () => {
+      cancelled = true;
+    };
+  }, [appointment, consultations.length]);
 
   const handleCancel = async () => {
     if (!appointment) return;
@@ -117,8 +172,6 @@ const VetAppointmentDetail = () => {
 
   const handleRegisterConsultation = () => {
     if (!appointment) return;
-    // ConsultaNew está em /vet/consultation/new
-    // Enviamos o appointmentId na query para no futuro pré-preencher
     navigate(`/vet/consultation/new?appointmentId=${appointment.id}`);
   };
 
@@ -217,7 +270,6 @@ const VetAppointmentDetail = () => {
     appointment.status !== "CANCELLED" &&
     appointment.status !== "COMPLETED";
 
-  // Agora só pode registrar consulta se estiver CONFIRMED
   const canRegisterConsultation =
     appointment && appointment.status === "CONFIRMED";
 
@@ -343,7 +395,9 @@ const VetAppointmentDetail = () => {
             <div className="mobile-card space-y-2">
               <div className="flex items-center gap-3 mb-1">
                 <Calendar className="w-5 h-5 text-primary" />
-                <h3 className="text-base font-semibold">Histórico de consultas</h3>
+                <h3 className="text-base font-semibold">
+                  Histórico de consultas
+                </h3>
               </div>
 
               {loadingConsultations ? (
@@ -380,7 +434,8 @@ const VetAppointmentDetail = () => {
 
                         {c.next_visit && (
                           <p className="text-[11px] text-muted-foreground mt-1">
-                            Próximo retorno: {formatConsultationDate(c.next_visit)}
+                            Próximo retorno:{" "}
+                            {formatConsultationDate(c.next_visit)}
                           </p>
                         )}
                       </button>
@@ -390,6 +445,31 @@ const VetAppointmentDetail = () => {
               )}
             </div>
 
+            {/* Resumo inteligente (IA) carrega separado */}
+            <div className="mobile-card space-y-2">
+              <div className="flex items-center gap-3 mb-1">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-semibold">
+                  Resumo inteligente (IA)
+                </h3>
+              </div>
+
+              {loadingSummary ? (
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Gerando resumo automático...
+                </p>
+              ) : summaryError ? (
+                <p className="text-sm text-red-500">{summaryError}</p>
+              ) : summary ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                  {summary}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Não há dados suficientes para gerar um resumo automático.
+                </p>
+              )}
+            </div>
 
             {/* Ações */}
             <div className="space-y-2">
